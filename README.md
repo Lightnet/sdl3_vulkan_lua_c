@@ -3,25 +3,26 @@
 # License: MIT
 
 # Status:
-- prototype
+- Prototype
+- Current working on vulkan set up test.
 
 # Program languages:
 - c language
 - cmake
 
-# libs:
+# Libraries:
 - SDL 3.2.22
 - Lua 5.4
+- vulkan sdk 1.4 from github
+
+  Note using the cmake to fetchcontent from github build and compile.
 
 # Information:
-  This is a Sample build for SDL3 and Lua 5.4. It has SDL event input tests.
+  Keep it simple.
 
-  Want to keep it simple.
-
-  Current working on vulkan set up test.
-
-# Lua:
-  Lua can be easy and hard.
+  Sample build for SDL3, Lua 5.4, Vulkan SDK for c language build. 
+  
+  By using lua script to expose SDL api events and vulkan api set up to build triangle sample.
 
 # SDL 3.2
 
@@ -36,9 +37,13 @@ Available renderer driver 6: gpu
 Available renderer driver 7: software
 ```
 
-# Lua SDL 3:
+# Lua:
+  Lua can be easy and hard.
+
+  To expose some SDL and Vulkan api is no easy task. As need to access the table from c to lua as lua to c. To config the vulkan render set up. As well clean garbage on lua api side.
 
 ## Vulkan test:
+  Work in progress.
 
 ```lua
 -- main.lua
@@ -47,16 +52,88 @@ local vulkan = require 'vulkan'
 -- sdl 3.2
 local window = sdl.create_window("Vulkan Test", 800, 600, 0)
 -- vulkan
+
+-- Create VkApplicationInfo
 local appinfo = vulkan.create_vk_application_info({pApplicationName = "Vulkan SDL3"})
+
+-- get SDL extensions, detect depend on the OS
 local extensions = vulkan.get_instance_extensions()
+
+-- Create VkInstanceCreateInfo
 local createinfo = vulkan.create_vk_create_info({
     pApplicationInfo = appinfo,
     enabledExtensionCount = #extensions,
     ppEnabledExtensionNames = extensions
 })
+-- Create VkInstance
 local instance = vulkan.vk_create_instance(createinfo, nil)
+-- Create VkSurfaceKHR
 local surface = vulkan.create_surface(window, instance, nil)
+-- Get physical device count
+local device_count = vulkan.get_device_count(instance)
+print("Physical device count:", device_count)
 
+-- Get physical devices
+local devices = vulkan.get_devices(instance, device_count)
+
+print("Physical devices:")
+local selected_device = nil
+for i, device in ipairs(devices) do
+    local props = vulkan.get_physical_device(device)
+    print(string.format("  Device %d: %s (Type: %d)", i, props.deviceName, props.deviceType))
+    -- Select discrete GPU (type 2) or integrated GPU (type 1) if no discrete GPU is found
+    if props.deviceType == 2 then -- VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
+        selected_device = device
+    elseif props.deviceType == 1 and not selected_device then -- VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+        selected_device = device
+    end
+end
+
+-- Check if a suitable GPU was found
+if not selected_device then
+    print("No suitable GPU found")
+else
+    print("Selected physical device:", tostring(selected_device))
+end
+
+-- Get queue family count
+local queue_family_count = vulkan.get_family_count(selected_device)
+print("Queue family count:", queue_family_count)
+
+-- Get queue family properties
+local queue_families = vulkan.queue_families(selected_device, queue_family_count, surface)
+print("Queue families:")
+local graphics_family, present_family = nil, nil
+for i, family in ipairs(queue_families) do
+    local flags = {}
+    if family.queueFlags & vulkan.QUEUE_GRAPHICS_BIT ~= 0 then
+        table.insert(flags, "Graphics")
+    end
+    if family.queueFlags & vulkan.QUEUE_COMPUTE_BIT ~= 0 then
+        table.insert(flags, "Compute")
+    end
+    if family.queueFlags & vulkan.QUEUE_TRANSFER_BIT ~= 0 then
+        table.insert(flags, "Transfer")
+    end
+    print(string.format("  Family %d: %s, Queue Count: %d, Present Support: %s",
+        i, table.concat(flags, ", "), family.queueCount, family.presentSupport and "Yes" or "No"))
+    if family.queueFlags & vulkan.QUEUE_GRAPHICS_BIT ~= 0 and not graphics_family then
+        graphics_family = i
+    end
+    if family.presentSupport and not present_family then
+        present_family = i
+    end
+    if graphics_family and present_family then
+        break -- Early break to match C code
+    end
+end
+
+if not graphics_family or not present_family then
+    print("No suitable queue families found")
+else
+    print("Selected graphics family:", graphics_family)
+    print("Selected present family:", present_family)
+end
 
 ```
 
@@ -153,3 +230,9 @@ end
 # SDL_GetRendererProperties:
 - SDL_PROP_RENDERER_NAME_STRING: the name of the rendering driver
   - direct3d11, opengl, vulkan, etc...
+
+
+# Credits:
+- Grok A.I on x.
+- Github repo examples from users.
+- 
