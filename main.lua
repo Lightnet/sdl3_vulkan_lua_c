@@ -65,6 +65,22 @@ else
     print("Selected physical device:", tostring(selected_device))
 end
 
+-- Check device extensions
+local device_extensions_supported = vulkan.get_device_extensions(selected_device)
+local swapchain_supported = false
+for _, ext in ipairs(device_extensions_supported) do
+    if ext == "VK_KHR_swapchain" then
+        swapchain_supported = true
+        break
+    end
+end
+if not swapchain_supported then
+    print("Error: Selected device does not support VK_KHR_swapchain extension")
+    return
+end
+print("VK_KHR_swapchain is supported")
+
+
 -- Force garbage collection to trigger __gc metamethods
 collectgarbage()
 print("Garbage collection triggered")
@@ -115,7 +131,26 @@ else
     print("Selected present family:", present_family)
 end
 
+-- Create VkDeviceQueueCreateInfo
+local queue_create_infos = vulkan.queue_create_infos(graphics_family, present_family)
 
+-- Create VkDeviceCreateInfo
+local device_extensions = {"VK_KHR_swapchain"}
+local device_create_info = vulkan.device_create_info({
+    pQueueCreateInfos = queue_create_infos,
+    enabledExtensionCount = #device_extensions,
+    ppEnabledExtensionNames = device_extensions
+})
+
+-- Create VkDevice
+local device = vulkan.create_device(selected_device, device_create_info, nil)
+print("Created VkDevice:", tostring(device))
+
+-- Get queues
+local graphics_queue = vulkan.get_device_queue(device, graphics_family, 0)
+local present_queue = vulkan.get_device_queue(device, present_family, 0)
+print("Graphics Queue:", tostring(graphics_queue))
+print("Present Queue:", tostring(present_queue))
 
 
 
