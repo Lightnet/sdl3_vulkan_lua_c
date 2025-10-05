@@ -153,11 +153,67 @@ print("Graphics Queue:", tostring(graphics_queue))
 print("Present Queue:", tostring(present_queue))
 
 
+-- Get surface capabilities
+local capabilities = vulkan.get_surface_capabilities(selected_device, surface)
+print("Surface Capabilities:")
+print("  Min Image Count:", capabilities.minImageCount)
+print("  Max Image Count:", capabilities.maxImageCount)
+print("  Current Extent:", capabilities.currentExtentWidth, "x", capabilities.currentExtentHeight)
+print("  Min Extent:", capabilities.minImageExtentWidth, "x", capabilities.minImageExtentHeight)
+print("  Max Extent:", capabilities.maxImageExtentWidth, "x", capabilities.maxImageExtentHeight)
+print("  Max Image Array Layers:", capabilities.maxImageArrayLayers)
+print("  Supported Transforms:", capabilities.supportedTransforms)
+print("  Current Transform:", capabilities.currentTransform)
+print("  Supported Composite Alpha:", capabilities.supportedCompositeAlpha)
+print("  Supported Usage Flags:", capabilities.supportedUsageFlags)
+
+-- Get surface formats
+local surface_formats = vulkan.get_surface_formats(selected_device, surface)
+print("Surface Formats:", #surface_formats)
+
+-- Select surface format (prefer VK_FORMAT_B8G8R8A8_SRGB with SRGB nonlinear color space)
+local selected_format = surface_formats[1] -- Default to first format
+for i, fmt in ipairs(surface_formats) do
+    if fmt.format == vulkan.FORMAT_B8G8R8A8_SRGB and fmt.colorSpace == vulkan.COLOR_SPACE_SRGB_NONLINEAR_KHR then
+        selected_format = fmt
+        break
+    end
+end
+print("Selected Surface Format: format =", selected_format.format, "colorSpace =", selected_format.colorSpace)
+
+-- Get present modes
+local present_modes = vulkan.get_surface_present_modes(selected_device, surface)
+print("Present Modes:", #present_modes)
+
+-- Select present mode (default to VK_PRESENT_MODE_FIFO_KHR)
+local selected_present_mode = vulkan.PRESENT_MODE_FIFO_KHR
+print("Selected Present Mode:", selected_present_mode)
 
 
 
+-- Create VkSwapchainCreateInfoKHR
+local swapchain_create_info = vulkan.create_swapchain_create_info({
+    surface = surface,
+    minImageCount = capabilities.minImageCount,
+    imageFormat = selected_format.format,
+    imageColorSpace = selected_format.colorSpace,
+    imageExtent = { width = capabilities.currentExtentWidth, height = capabilities.currentExtentHeight },
+    imageArrayLayers = 1,
+    imageUsage = vulkan.IMAGE_USAGE_COLOR_ATTACHMENT_BIT, -- Common usage for rendering
+    presentMode = selected_present_mode
+})
+
+-- Create VkSwapchainKHR
+local swapchain = vulkan.create_swapchain(device, swapchain_create_info, nil)
+print("Created VkSwapchainKHR:", tostring(swapchain))
 
 
+-- Get swapchain images
+local swapchain_images = vulkan.get_swapchain_images(device, swapchain)
+print("Swapchain Images:", #swapchain_images)
+for i, img in ipairs(swapchain_images) do
+    print("Image", i, ":", tostring(img))
+end
 
 
 
