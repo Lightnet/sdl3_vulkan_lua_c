@@ -4,7 +4,7 @@ local vulkan = require 'vulkan'
 
 sdl.init()
 
-local window = sdl.create_window("SDL3 Renderer Demo", 800, 600, sdl.WINDOW_VULKAN | sdl.WINDOW_RESIZABLE)
+local window = sdl.create_window("SDL3 Vulkan Demo", 800, 600, sdl.WINDOW_VULKAN | sdl.WINDOW_RESIZABLE)
 local window_id = window.windowID
 
 -- Create VkApplicationInfo
@@ -39,7 +39,113 @@ local surface = vulkan.create_surface(window, instance, nil)
 print("Created VkSurfaceKHR:", tostring(surface))
 
 
-print("Window and renderer created. Press ESC or close to exit.")
+-- Get physical device count
+local device_count = vulkan.get_device_count(instance)
+print("Physical device count:", device_count)
+
+-- Get physical devices
+local devices = vulkan.get_devices(instance, device_count)
+print("Physical devices:")
+local selected_device = nil
+for i, device in ipairs(devices) do
+    local props = vulkan.get_physical_device(device)
+    print(string.format("  Device %d: %s (Type: %d)", i, props.deviceName, props.deviceType))
+    -- Select discrete GPU (type 2) or integrated GPU (type 1) if no discrete GPU is found
+    if props.deviceType == 2 then -- VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
+        selected_device = device
+    elseif props.deviceType == 1 and not selected_device then -- VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+        selected_device = device
+    end
+end
+
+-- Check if a suitable GPU was found
+if not selected_device then
+    print("No suitable GPU found")
+else
+    print("Selected physical device:", tostring(selected_device))
+end
+
+-- Force garbage collection to trigger __gc metamethods
+collectgarbage()
+print("Garbage collection triggered")
+
+-- Verify instance, surface, and selected device are still valid
+print("VkInstance after cleanup:", tostring(instance))
+print("VkSurfaceKHR after cleanup:", tostring(surface))
+if selected_device then
+    print("Selected physical device after cleanup:", tostring(selected_device))
+end
+
+-- Get queue family count
+local queue_family_count = vulkan.get_family_count(selected_device)
+print("Queue family count:", queue_family_count)
+
+-- Get queue family properties
+local queue_families = vulkan.queue_families(selected_device, queue_family_count, surface)
+print("Queue families:")
+local graphics_family, present_family = nil, nil
+for i, family in ipairs(queue_families) do
+    local flags = {}
+    if family.queueFlags & vulkan.QUEUE_GRAPHICS_BIT ~= 0 then
+        table.insert(flags, "Graphics")
+    end
+    if family.queueFlags & vulkan.QUEUE_COMPUTE_BIT ~= 0 then
+        table.insert(flags, "Compute")
+    end
+    if family.queueFlags & vulkan.QUEUE_TRANSFER_BIT ~= 0 then
+        table.insert(flags, "Transfer")
+    end
+    print(string.format("  Family %d: %s, Queue Count: %d, Present Support: %s",
+        i, table.concat(flags, ", "), family.queueCount, family.presentSupport and "Yes" or "No"))
+    if family.queueFlags & vulkan.QUEUE_GRAPHICS_BIT ~= 0 and not graphics_family then
+        graphics_family = i
+    end
+    if family.presentSupport and not present_family then
+        present_family = i
+    end
+    if graphics_family and present_family then
+        break -- Early break to match C code
+    end
+end
+
+if not graphics_family or not present_family then
+    print("No suitable queue families found")
+else
+    print("Selected graphics family:", graphics_family)
+    print("Selected present family:", present_family)
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+print("Window and vulkan created (wip). Press ESC or close to exit.")
 
 while true do
     local events = sdl.poll_events()

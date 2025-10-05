@@ -6,7 +6,7 @@
 #include <lauxlib.h>
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL_vulkan.h>
-#include "module_sdl.h" // Include for lua_SDL_Window
+#include "module_sdl.h"
 
 typedef struct {
     VkApplicationInfo app_info;
@@ -28,6 +28,10 @@ typedef struct {
     VkInstance instance; // Store instance for vkDestroySurfaceKHR
 } lua_VkSurfaceKHR;
 
+typedef struct {
+    VkPhysicalDevice device;
+} lua_VkPhysicalDevice;
+
 void lua_push_VkApplicationInfo(lua_State* L, VkApplicationInfo* app_info, const char* app_name);
 lua_VkApplicationInfo* lua_check_VkApplicationInfo(lua_State* L, int idx);
 void lua_push_VkInstanceCreateInfo(lua_State* L, VkInstanceCreateInfo* create_info, char** extensions, uint32_t extension_count);
@@ -36,6 +40,8 @@ void lua_push_VkInstance(lua_State* L, VkInstance instance);
 lua_VkInstance* lua_check_VkInstance(lua_State* L, int idx);
 void lua_push_VkSurfaceKHR(lua_State* L, VkSurfaceKHR surface, VkInstance instance);
 lua_VkSurfaceKHR* lua_check_VkSurfaceKHR(lua_State* L, int idx);
+void lua_push_VkPhysicalDevice(lua_State* L, VkPhysicalDevice device);
+lua_VkPhysicalDevice* lua_check_VkPhysicalDevice(lua_State* L, int idx);
 int luaopen_vulkan(lua_State* L);
 
 #endif
