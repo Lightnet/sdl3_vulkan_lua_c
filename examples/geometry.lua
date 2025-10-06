@@ -64,8 +64,6 @@ while true do
     -- Render geometry (triangle, no texture, no indices)
     sdl.render_geometry(renderer, nil, vertices, nil)
 
-
-
     -- Draw debug text
     sdl.set_render_draw_color(renderer, 255, 0, 0, 255) -- Red text
     sdl.render_debug_text(renderer, 50, 50, "Testing SDL3 with Lua!")

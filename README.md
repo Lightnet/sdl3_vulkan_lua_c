@@ -24,6 +24,41 @@
   
   By using lua script to expose SDL api events and vulkan api set up to build triangle sample.
 
+# Goals:
+  By using the Grok AI on https://x.com/i/grok to help translate c vulkan code to lua script. To break down and use lua script to create vulkan set up and render.
+
+  Note due to limited AI agent messages memory. Rebuilding take time.
+
+  Note there will be lag if there print logs.
+
+  Once the simple triangle I will try to make 3D cube and input test.
+
+# Project Files:
+## module vulkan
+```
+- include
+    - module_sdl.h ( line 29 )
+    - module_vulkan.h ( line 153 )
+- src/
+    - main.c ( lines 73 )
+    - module_sdl.c ( lines 823 )
+    - module_vulkan.c ( lines 1824 )
+```
+## test files:
+```
+- window.c // test
+- base_triangle.c // shader file spv
+- base_triangle_string.c // triangle string
+```
+## examples:
+```
+draw_shapes.lua (SDL renderer test)
+renderer.lua (SDL renderer test)
+geometry.lua (SDL renderer test)
+input_test.lua (SDL input test)
+```
+
+
 # SDL 3.2
 
 ```
