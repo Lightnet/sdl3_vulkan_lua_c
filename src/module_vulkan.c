@@ -20,6 +20,14 @@ static const char* SURFACE_FORMAT_MT = "vulkan.surface_format";
 static const char* SWAPCHAIN_CREATE_INFO_MT = "vulkan.swapchain_create_info";
 static const char* SWAPCHAIN_MT = "vulkan.swapchain";
 
+static const char* IMAGE_VIEW_CREATE_INFO_MT = "vulkan.image_view_create_info";
+static const char* IMAGE_VIEW_MT = "vulkan.image_view";
+static const char* ATTACHMENT_DESCRIPTION_MT = "vulkan.attachment_description";
+static const char* SUBPASS_DESCRIPTION_MT = "vulkan.subpass_description";
+static const char* SUBPASS_DEPENDENCY_MT = "vulkan.subpass_dependency";
+static const char* RENDER_PASS_CREATE_INFO_MT = "vulkan.render_pass_create_info";
+static const char* RENDER_PASS_MT = "vulkan.render_pass";
+
 // Garbage collection metamethod for VkApplicationInfo
 static int appinfo_gc(lua_State* L) {
     lua_VkApplicationInfo* ud = (lua_VkApplicationInfo*)luaL_checkudata(L, 1, APPINFO_MT);
@@ -1084,6 +1092,493 @@ static int l_vulkan_get_swapchain_images(lua_State* L) {
 }
 
 
+// IMAGE AND RENDER PASS
+
+// Garbage collection for VkImageViewCreateInfo (no dynamic allocations)
+static int image_view_create_info_gc(lua_State* L) {
+    printf("Cleaning up VkImageViewCreateInfo\n");
+    return 0;
+}
+
+// Garbage collection for VkImageView
+static int image_view_gc(lua_State* L) {
+    lua_VkImageView* ud = (lua_VkImageView*)luaL_checkudata(L, 1, IMAGE_VIEW_MT);
+    if (ud->image_view && ud->device) {
+        printf("Cleaning up VkImageView\n");
+        vkDestroyImageView(ud->device, ud->image_view, NULL);
+        ud->image_view = NULL;
+        ud->device = NULL;
+    }
+    return 0;
+}
+
+// Garbage collection for VkAttachmentDescription (no dynamic allocations)
+static int attachment_description_gc(lua_State* L) {
+    printf("Cleaning up VkAttachmentDescription\n");
+    return 0;
+}
+
+// Garbage collection for VkSubpassDescription
+static int subpass_description_gc(lua_State* L) {
+    lua_VkSubpassDescription* ud = (lua_VkSubpassDescription*)luaL_checkudata(L, 1, SUBPASS_DESCRIPTION_MT);
+    if (ud->pColorAttachments) {
+        printf("Cleaning up VkSubpassDescription\n");
+        free(ud->pColorAttachments);
+        ud->pColorAttachments = NULL;
+    }
+    return 0;
+}
+
+// Garbage collection for VkSubpassDependency (no dynamic allocations)
+static int subpass_dependency_gc(lua_State* L) {
+    printf("Cleaning up VkSubpassDependency\n");
+    return 0;
+}
+
+// Garbage collection for VkRenderPassCreateInfo
+static int render_pass_create_info_gc(lua_State* L) {
+    lua_VkRenderPassCreateInfo* ud = (lua_VkRenderPassCreateInfo*)luaL_checkudata(L, 1, RENDER_PASS_CREATE_INFO_MT);
+    if (ud->pAttachments) {
+        printf("Cleaning up VkRenderPassCreateInfo attachments\n");
+        free(ud->pAttachments);
+        ud->pAttachments = NULL;
+    }
+    if (ud->pSubpasses) {
+        printf("Cleaning up VkRenderPassCreateInfo subpasses\n");
+        free(ud->pSubpasses);
+        ud->pSubpasses = NULL;
+    }
+    if (ud->pDependencies) {
+        printf("Cleaning up VkRenderPassCreateInfo dependencies\n");
+        free(ud->pDependencies);
+        ud->pDependencies = NULL;
+    }
+    return 0;
+}
+
+// Garbage collection for VkRenderPass
+static int render_pass_gc(lua_State* L) {
+    lua_VkRenderPass* ud = (lua_VkRenderPass*)luaL_checkudata(L, 1, RENDER_PASS_MT);
+    if (ud->render_pass && ud->device) {
+        printf("Cleaning up VkRenderPass\n");
+        vkDestroyRenderPass(ud->device, ud->render_pass, NULL);
+        ud->render_pass = NULL;
+        ud->device = NULL;
+    }
+    return 0;
+}
+
+// Push VkImageViewCreateInfo
+void lua_push_VkImageViewCreateInfo(lua_State* L, VkImageViewCreateInfo* create_info) {
+    if (!create_info) {
+        luaL_error(L, "Cannot create userdata for null VkImageViewCreateInfo");
+    }
+    lua_VkImageViewCreateInfo* ud = (lua_VkImageViewCreateInfo*)lua_newuserdata(L, sizeof(lua_VkImageViewCreateInfo));
+    ud->create_info = *create_info;
+    luaL_setmetatable(L, IMAGE_VIEW_CREATE_INFO_MT);
+}
+
+// Check VkImageViewCreateInfo
+lua_VkImageViewCreateInfo* lua_check_VkImageViewCreateInfo(lua_State* L, int idx) {
+    lua_VkImageViewCreateInfo* ud = (lua_VkImageViewCreateInfo*)luaL_checkudata(L, idx, IMAGE_VIEW_CREATE_INFO_MT);
+    return ud;
+}
+
+// Push VkImageView
+void lua_push_VkImageView(lua_State* L, VkImageView image_view, VkDevice device) {
+    if (!image_view) {
+        luaL_error(L, "Cannot create userdata for null VkImageView");
+    }
+    lua_VkImageView* ud = (lua_VkImageView*)lua_newuserdata(L, sizeof(lua_VkImageView));
+    ud->image_view = image_view;
+    ud->device = device;
+    luaL_setmetatable(L, IMAGE_VIEW_MT);
+}
+
+// Check VkImageView
+lua_VkImageView* lua_check_VkImageView(lua_State* L, int idx) {
+    lua_VkImageView* ud = (lua_VkImageView*)luaL_checkudata(L, idx, IMAGE_VIEW_MT);
+    if (!ud->image_view) {
+        luaL_error(L, "Invalid VkImageView (already destroyed)");
+    }
+    return ud;
+}
+
+// Push VkAttachmentDescription
+void lua_push_VkAttachmentDescription(lua_State* L, VkAttachmentDescription* desc) {
+    if (!desc) {
+        luaL_error(L, "Cannot create userdata for null VkAttachmentDescription");
+    }
+    lua_VkAttachmentDescription* ud = (lua_VkAttachmentDescription*)lua_newuserdata(L, sizeof(lua_VkAttachmentDescription));
+    ud->desc = *desc;
+    luaL_setmetatable(L, ATTACHMENT_DESCRIPTION_MT);
+}
+
+// Check VkAttachmentDescription
+lua_VkAttachmentDescription* lua_check_VkAttachmentDescription(lua_State* L, int idx) {
+    lua_VkAttachmentDescription* ud = (lua_VkAttachmentDescription*)luaL_checkudata(L, idx, ATTACHMENT_DESCRIPTION_MT);
+    return ud;
+}
+
+// Push VkSubpassDescription
+void lua_push_VkSubpassDescription(lua_State* L, VkSubpassDescription* desc, VkAttachmentReference* color_attachments) {
+    if (!desc) {
+        luaL_error(L, "Cannot create userdata for null VkSubpassDescription");
+    }
+    lua_VkSubpassDescription* ud = (lua_VkSubpassDescription*)lua_newuserdata(L, sizeof(lua_VkSubpassDescription));
+    ud->desc = *desc;
+    ud->pColorAttachments = color_attachments;
+    luaL_setmetatable(L, SUBPASS_DESCRIPTION_MT);
+}
+
+// Check VkSubpassDescription
+lua_VkSubpassDescription* lua_check_VkSubpassDescription(lua_State* L, int idx) {
+    lua_VkSubpassDescription* ud = (lua_VkSubpassDescription*)luaL_checkudata(L, idx, SUBPASS_DESCRIPTION_MT);
+    return ud;
+}
+
+// Push VkSubpassDependency
+void lua_push_VkSubpassDependency(lua_State* L, VkSubpassDependency* dep) {
+    if (!dep) {
+        luaL_error(L, "Cannot create userdata for null VkSubpassDependency");
+    }
+    lua_VkSubpassDependency* ud = (lua_VkSubpassDependency*)lua_newuserdata(L, sizeof(lua_VkSubpassDependency));
+    ud->dep = *dep;
+    luaL_setmetatable(L, SUBPASS_DEPENDENCY_MT);
+}
+
+// Check VkSubpassDependency
+lua_VkSubpassDependency* lua_check_VkSubpassDependency(lua_State* L, int idx) {
+    lua_VkSubpassDependency* ud = (lua_VkSubpassDependency*)luaL_checkudata(L, idx, SUBPASS_DEPENDENCY_MT);
+    return ud;
+}
+
+// Push VkRenderPassCreateInfo
+void lua_push_VkRenderPassCreateInfo(lua_State* L, VkRenderPassCreateInfo* create_info, VkAttachmentDescription* attachments, VkSubpassDescription* subpasses, VkSubpassDependency* dependencies) {
+    if (!create_info) {
+        luaL_error(L, "Cannot create userdata for null VkRenderPassCreateInfo");
+    }
+    lua_VkRenderPassCreateInfo* ud = (lua_VkRenderPassCreateInfo*)lua_newuserdata(L, sizeof(lua_VkRenderPassCreateInfo));
+    ud->create_info = *create_info;
+    ud->pAttachments = attachments;
+    ud->pSubpasses = subpasses;
+    ud->pDependencies = dependencies;
+    luaL_setmetatable(L, RENDER_PASS_CREATE_INFO_MT);
+}
+
+// Check VkRenderPassCreateInfo
+lua_VkRenderPassCreateInfo* lua_check_VkRenderPassCreateInfo(lua_State* L, int idx) {
+    lua_VkRenderPassCreateInfo* ud = (lua_VkRenderPassCreateInfo*)luaL_checkudata(L, idx, RENDER_PASS_CREATE_INFO_MT);
+    return ud;
+}
+
+// Push VkRenderPass
+void lua_push_VkRenderPass(lua_State* L, VkRenderPass render_pass, VkDevice device) {
+    if (!render_pass) {
+        luaL_error(L, "Cannot create userdata for null VkRenderPass");
+    }
+    lua_VkRenderPass* ud = (lua_VkRenderPass*)lua_newuserdata(L, sizeof(lua_VkRenderPass));
+    ud->render_pass = render_pass;
+    ud->device = device;
+    luaL_setmetatable(L, RENDER_PASS_MT);
+}
+
+// Check VkRenderPass
+lua_VkRenderPass* lua_check_VkRenderPass(lua_State* L, int idx) {
+    lua_VkRenderPass* ud = (lua_VkRenderPass*)luaL_checkudata(L, idx, RENDER_PASS_MT);
+    if (!ud->render_pass) {
+        luaL_error(L, "Invalid VkRenderPass (already destroyed)");
+    }
+    return ud;
+}
+
+// Create VkImageViewCreateInfo: vulkan.create_image_view_create_info(table)
+static int l_vulkan_create_image_view_create_info(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkImageViewCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .image = VK_NULL_HANDLE,
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = VK_FORMAT_UNDEFINED,
+        .components = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY},
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        }
+    };
+
+    lua_getfield(L, 1, "image");
+    if (!lua_isnil(L, -1)) {
+        create_info.image = (VkImage)lua_touserdata(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "format");
+    if (!lua_isnil(L, -1)) {
+        create_info.format = (VkFormat)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_push_VkImageViewCreateInfo(L, &create_info);
+    return 1;
+}
+
+// Create VkImageView: vulkan.create_image_view(device, create_info, pAllocator)
+static int l_vulkan_create_image_view(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkImageViewCreateInfo* create_info_ud = lua_check_VkImageViewCreateInfo(L, 2);
+    luaL_checktype(L, 3, LUA_TNIL);
+
+    VkImageView image_view;
+    VkResult result = vkCreateImageView(device_ud->device, &create_info_ud->create_info, NULL, &image_view);
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to create image view: VkResult %d", result);
+    }
+
+    lua_push_VkImageView(L, image_view, device_ud->device);
+    return 1;
+}
+
+// Create VkAttachmentDescription: vulkan.create_attachment_description(table)
+static int l_vulkan_create_attachment_description(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkAttachmentDescription desc = {
+        .flags = 0,
+        .format = VK_FORMAT_UNDEFINED,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    lua_getfield(L, 1, "format");
+    if (!lua_isnil(L, -1)) {
+        desc.format = (VkFormat)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_push_VkAttachmentDescription(L, &desc);
+    return 1;
+}
+
+// Create VkSubpassDescription: vulkan.create_subpass_description(table)
+static int l_vulkan_create_subpass_description(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkSubpassDescription desc = {
+        .flags = 0,
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .inputAttachmentCount = 0,
+        .pInputAttachments = NULL,
+        .colorAttachmentCount = 0,
+        .pColorAttachments = NULL,
+        .pResolveAttachments = NULL,
+        .pDepthStencilAttachment = NULL,
+        .preserveAttachmentCount = 0,
+        .pPreserveAttachments = NULL
+    };
+
+    VkAttachmentReference* color_attachments = NULL;
+    lua_getfield(L, 1, "pColorAttachments");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        desc.colorAttachmentCount = lua_rawlen(L, -1);
+        if (desc.colorAttachmentCount > 0) {
+            color_attachments = (VkAttachmentReference*)malloc(desc.colorAttachmentCount * sizeof(VkAttachmentReference));
+            if (!color_attachments) {
+                luaL_error(L, "Failed to allocate memory for color attachments");
+            }
+            for (uint32_t i = 0; i < desc.colorAttachmentCount; i++) {
+                lua_rawgeti(L, -1, i + 1);
+                luaL_checktype(L, -1, LUA_TTABLE);
+                lua_getfield(L, -1, "attachment");
+                color_attachments[i].attachment = (uint32_t)luaL_checkinteger(L, -1);
+                lua_pop(L, 1);
+                lua_getfield(L, -1, "layout");
+                color_attachments[i].layout = (VkImageLayout)luaL_checkinteger(L, -1);
+                lua_pop(L, 1);
+                lua_pop(L, 1);
+            }
+            desc.pColorAttachments = color_attachments;
+        }
+    }
+    lua_pop(L, 1);
+
+    lua_push_VkSubpassDescription(L, &desc, color_attachments);
+    return 1;
+}
+
+// Create VkSubpassDependency: vulkan.create_subpass_dependency(table)
+static int l_vulkan_create_subpass_dependency(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkSubpassDependency dep = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dependencyFlags = 0
+    };
+
+    lua_getfield(L, 1, "srcSubpass");
+    if (!lua_isnil(L, -1)) {
+        dep.srcSubpass = (uint32_t)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "dstSubpass");
+    if (!lua_isnil(L, -1)) {
+        dep.dstSubpass = (uint32_t)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "srcStageMask");
+    if (!lua_isnil(L, -1)) {
+        dep.srcStageMask = (VkPipelineStageFlags)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "dstStageMask");
+    if (!lua_isnil(L, -1)) {
+        dep.dstStageMask = (VkPipelineStageFlags)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "srcAccessMask");
+    if (!lua_isnil(L, -1)) {
+        dep.srcAccessMask = (VkAccessFlags)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "dstAccessMask");
+    if (!lua_isnil(L, -1)) {
+        dep.dstAccessMask = (VkAccessFlags)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_push_VkSubpassDependency(L, &dep);
+    return 1;
+}
+
+// Create VkRenderPassCreateInfo: vulkan.create_render_pass_create_info(table)
+static int l_vulkan_create_render_pass_create_info(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkRenderPassCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .attachmentCount = 0,
+        .pAttachments = NULL,
+        .subpassCount = 0,
+        .pSubpasses = NULL,
+        .dependencyCount = 0,
+        .pDependencies = NULL
+    };
+
+    VkAttachmentDescription* attachments = NULL;
+    VkSubpassDescription* subpasses = NULL;
+    VkSubpassDependency* dependencies = NULL;
+
+    lua_getfield(L, 1, "pAttachments");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        create_info.attachmentCount = lua_rawlen(L, -1);
+        if (create_info.attachmentCount > 0) {
+            attachments = (VkAttachmentDescription*)malloc(create_info.attachmentCount * sizeof(VkAttachmentDescription));
+            if (!attachments) {
+                luaL_error(L, "Failed to allocate memory for attachments");
+            }
+            for (uint32_t i = 0; i < create_info.attachmentCount; i++) {
+                lua_rawgeti(L, -1, i + 1);
+                lua_VkAttachmentDescription* desc_ud = lua_check_VkAttachmentDescription(L, -1);
+                attachments[i] = desc_ud->desc;
+                lua_pop(L, 1);
+            }
+            create_info.pAttachments = attachments;
+        }
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "pSubpasses");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        create_info.subpassCount = lua_rawlen(L, -1);
+        if (create_info.subpassCount > 0) {
+            subpasses = (VkSubpassDescription*)malloc(create_info.subpassCount * sizeof(VkSubpassDescription));
+            if (!subpasses) {
+                if (attachments) free(attachments);
+                luaL_error(L, "Failed to allocate memory for subpasses");
+            }
+            for (uint32_t i = 0; i < create_info.subpassCount; i++) {
+                lua_rawgeti(L, -1, i + 1);
+                lua_VkSubpassDescription* subpass_ud = lua_check_VkSubpassDescription(L, -1);
+                subpasses[i] = subpass_ud->desc;
+                lua_pop(L, 1);
+            }
+            create_info.pSubpasses = subpasses;
+        }
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "pDependencies");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        create_info.dependencyCount = lua_rawlen(L, -1);
+        if (create_info.dependencyCount > 0) {
+            dependencies = (VkSubpassDependency*)malloc(create_info.dependencyCount * sizeof(VkSubpassDependency));
+            if (!dependencies) {
+                if (attachments) free(attachments);
+                if (subpasses) free(subpasses);
+                luaL_error(L, "Failed to allocate memory for dependencies");
+            }
+            for (uint32_t i = 0; i < create_info.dependencyCount; i++) {
+                lua_rawgeti(L, -1, i + 1);
+                lua_VkSubpassDependency* dep_ud = lua_check_VkSubpassDependency(L, -1);
+                dependencies[i] = dep_ud->dep;
+                lua_pop(L, 1);
+            }
+            create_info.pDependencies = dependencies;
+        }
+    }
+    lua_pop(L, 1);
+
+    lua_push_VkRenderPassCreateInfo(L, &create_info, attachments, subpasses, dependencies);
+    return 1;
+}
+
+// Create VkRenderPass: vulkan.create_render_pass(device, create_info, pAllocator)
+static int l_vulkan_create_render_pass(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkRenderPassCreateInfo* create_info_ud = lua_check_VkRenderPassCreateInfo(L, 2);
+    luaL_checktype(L, 3, LUA_TNIL);
+
+    VkRenderPass render_pass;
+    VkResult result = vkCreateRenderPass(device_ud->device, &create_info_ud->create_info, NULL, &render_pass);
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to create render pass: VkResult %d", result);
+    }
+
+    lua_push_VkRenderPass(L, render_pass, device_ud->device);
+    return 1;
+}
+
+
+
+
+
 
 // Metatable setup
 static void appinfo_metatable(lua_State* L) {
@@ -1165,6 +1660,57 @@ static void swapchain_metatable(lua_State* L) {
 }
 
 
+// Metatable setup
+static void image_view_create_info_metatable(lua_State* L) {
+    luaL_newmetatable(L, IMAGE_VIEW_CREATE_INFO_MT);
+    lua_pushcfunction(L, image_view_create_info_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void image_view_metatable(lua_State* L) {
+    luaL_newmetatable(L, IMAGE_VIEW_MT);
+    lua_pushcfunction(L, image_view_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void attachment_description_metatable(lua_State* L) {
+    luaL_newmetatable(L, ATTACHMENT_DESCRIPTION_MT);
+    lua_pushcfunction(L, attachment_description_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void subpass_description_metatable(lua_State* L) {
+    luaL_newmetatable(L, SUBPASS_DESCRIPTION_MT);
+    lua_pushcfunction(L, subpass_description_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void subpass_dependency_metatable(lua_State* L) {
+    luaL_newmetatable(L, SUBPASS_DEPENDENCY_MT);
+    lua_pushcfunction(L, subpass_dependency_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void render_pass_create_info_metatable(lua_State* L) {
+    luaL_newmetatable(L, RENDER_PASS_CREATE_INFO_MT);
+    lua_pushcfunction(L, render_pass_create_info_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void render_pass_metatable(lua_State* L) {
+    luaL_newmetatable(L, RENDER_PASS_MT);
+    lua_pushcfunction(L, render_pass_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+
 // Module loader: Register functions
 static const struct luaL_Reg vulkan_lib[] = {
     {"create_vk_application_info", l_vulkan_create_vk_application_info},
@@ -1193,6 +1739,15 @@ static const struct luaL_Reg vulkan_lib[] = {
     {"create_swapchain", l_vulkan_create_swapchain},
     {"get_swapchain_images", l_vulkan_get_swapchain_images},
 
+    {"create_image_view_create_info", l_vulkan_create_image_view_create_info},
+    {"create_image_view", l_vulkan_create_image_view},
+    {"create_attachment_description", l_vulkan_create_attachment_description},
+    {"create_subpass_description", l_vulkan_create_subpass_description},
+    {"create_subpass_dependency", l_vulkan_create_subpass_dependency},
+    {"create_render_pass_create_info", l_vulkan_create_render_pass_create_info},
+    {"create_render_pass", l_vulkan_create_render_pass},
+
+
     {NULL, NULL}
 };
 
@@ -1209,6 +1764,14 @@ int luaopen_vulkan(lua_State* L) {
     surface_format_metatable(L);
     swapchain_create_info_metatable(L);
     swapchain_metatable(L);
+
+    image_view_create_info_metatable(L);
+    image_view_metatable(L);
+    attachment_description_metatable(L);
+    subpass_description_metatable(L);
+    subpass_dependency_metatable(L);
+    render_pass_create_info_metatable(L);
+    render_pass_metatable(L);
     luaL_newlib(L, vulkan_lib);
 
     // Queue flag constants
@@ -1232,6 +1795,30 @@ int luaopen_vulkan(lua_State* L) {
     // Add image usage flags
     lua_pushinteger(L, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
     lua_setfield(L, -2, "IMAGE_USAGE_COLOR_ATTACHMENT_BIT");
+
+    // Additional constants for render pass
+    lua_pushinteger(L, VK_SAMPLE_COUNT_1_BIT);
+    lua_setfield(L, -2, "SAMPLE_COUNT_1_BIT");
+    lua_pushinteger(L, VK_ATTACHMENT_LOAD_OP_CLEAR);
+    lua_setfield(L, -2, "ATTACHMENT_LOAD_OP_CLEAR");
+    lua_pushinteger(L, VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+    lua_setfield(L, -2, "ATTACHMENT_LOAD_OP_DONT_CARE");
+    lua_pushinteger(L, VK_ATTACHMENT_STORE_OP_STORE);
+    lua_setfield(L, -2, "ATTACHMENT_STORE_OP_STORE");
+    lua_pushinteger(L, VK_IMAGE_LAYOUT_UNDEFINED);
+    lua_setfield(L, -2, "IMAGE_LAYOUT_UNDEFINED");
+    lua_pushinteger(L, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    lua_setfield(L, -2, "IMAGE_LAYOUT_PRESENT_SRC_KHR");
+    lua_pushinteger(L, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    lua_setfield(L, -2, "IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL");
+    lua_pushinteger(L, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    lua_setfield(L, -2, "PIPELINE_BIND_POINT_GRAPHICS");
+    lua_pushinteger(L, VK_SUBPASS_EXTERNAL);
+    lua_setfield(L, -2, "SUBPASS_EXTERNAL");
+    lua_pushinteger(L, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+    lua_setfield(L, -2, "PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT");
+    lua_pushinteger(L, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+    lua_setfield(L, -2, "ACCESS_COLOR_ATTACHMENT_WRITE_BIT");
 
     return 1;
 }

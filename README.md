@@ -215,6 +215,50 @@ for i, img in ipairs(swapchain_images) do
     print("Image", i, ":", tostring(img))
 end
 
+-- Create image views for swapchain images
+local image_views = {}
+for i, img in ipairs(swapchain_images) do
+    local image_view_create_info = vulkan.create_image_view_create_info({
+        image = img,
+        format = selected_format.format
+    })
+    local image_view = vulkan.create_image_view(device, image_view_create_info, nil)
+    image_views[i] = image_view
+    print("Created VkImageView", i, ":", tostring(image_view))
+end
+
+-- Create color attachment
+local color_attachment = vulkan.create_attachment_description({
+    format = selected_format.format
+})
+
+-- Create color attachment reference
+local color_attachment_ref = {
+    attachment = 0,
+    layout = vulkan.IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+}
+
+-- Create subpass description
+local subpass = vulkan.create_subpass_description({
+    pColorAttachments = { color_attachment_ref }
+})
+
+-- Create subpass dependency
+local dependency = vulkan.create_subpass_dependency({})
+
+-- Create render pass create info
+local render_pass_create_info = vulkan.create_render_pass_create_info({
+    pAttachments = { color_attachment },
+    pSubpasses = { subpass },
+    pDependencies = { dependency }
+})
+
+-- Create render pass
+local render_pass = vulkan.create_render_pass(device, render_pass_create_info, nil)
+print("Created VkRenderPass:", tostring(render_pass))
+
+
+
 ```
 
 

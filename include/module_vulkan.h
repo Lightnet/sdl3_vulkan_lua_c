@@ -65,6 +65,42 @@ typedef struct {
     VkDevice device; // For cleanup
 } lua_VkSwapchainKHR;
 
+
+typedef struct {
+    VkImageViewCreateInfo create_info;
+} lua_VkImageViewCreateInfo;
+
+typedef struct {
+    VkImageView image_view;
+    VkDevice device; // For cleanup
+} lua_VkImageView;
+
+typedef struct {
+    VkAttachmentDescription desc;
+} lua_VkAttachmentDescription;
+
+typedef struct {
+    VkSubpassDescription desc;
+    VkAttachmentReference* pColorAttachments; // Managed array
+} lua_VkSubpassDescription;
+
+typedef struct {
+    VkSubpassDependency dep;
+} lua_VkSubpassDependency;
+
+typedef struct {
+    VkRenderPassCreateInfo create_info;
+    VkAttachmentDescription* pAttachments; // Managed array
+    VkSubpassDescription* pSubpasses; // Managed array
+    VkSubpassDependency* pDependencies; // Managed array
+} lua_VkRenderPassCreateInfo;
+
+typedef struct {
+    VkRenderPass render_pass;
+    VkDevice device; // For cleanup
+} lua_VkRenderPass;
+
+
 // Existing function declarations...
 void lua_push_VkApplicationInfo(lua_State* L, VkApplicationInfo* app_info, const char* app_name);
 lua_VkApplicationInfo* lua_check_VkApplicationInfo(lua_State* L, int idx);
@@ -100,7 +136,18 @@ void lua_push_VkSwapchainKHR(lua_State* L, VkSwapchainKHR swapchain, VkDevice de
 lua_VkSwapchainKHR* lua_check_VkSwapchainKHR(lua_State* L, int idx);
 static int l_vulkan_create_swapchain_create_info(lua_State* L);
 static int l_vulkan_create_swapchain(lua_State* L);
-
 static int l_vulkan_get_swapchain_images(lua_State* L);
+
+// image and render pass
+static int l_vulkan_create_image_view_create_info(lua_State* L);
+static int l_vulkan_create_image_view(lua_State* L);
+static int l_vulkan_create_attachment_description(lua_State* L);
+static int l_vulkan_create_subpass_description(lua_State* L);
+static int l_vulkan_create_subpass_dependency(lua_State* L);
+static int l_vulkan_create_render_pass_create_info(lua_State* L);
+static int l_vulkan_create_render_pass(lua_State* L);
+int luaopen_vulkan(lua_State* L);
+
+
 
 #endif
