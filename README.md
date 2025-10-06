@@ -13,7 +13,7 @@
 # Libraries:
 - SDL 3.2.22
 - Lua 5.4
-- vulkan sdk 1.4 from github
+- Vulkan sdk 1.4 from github
 
   Note using the cmake to fetchcontent from github build and compile.
 
@@ -345,18 +345,26 @@ end
 - https://wiki.libsdl.org/SDL3/SDL_GetCurrentVideoDriver
 - https://wiki.libsdl.org/SDL3/SDL_GetRendererProperties
 - https://wiki.libsdl.org/SDL3/SDL_SetHint
-- 
-
 - https://wiki.libsdl.org/SDL3/SDL_FillSurfaceRect
 - https://wiki.libsdl.org/SDL3/SDL_RenderLine
 - https://wiki.libsdl.org/SDL3/SDL_RenderDebugText
+
+# Libraries:
+- https://github.com/KhronosGroup/glslang
+- https://github.com/KhronosGroup/Vulkan-Headers
+- https://github.com/KhronosGroup/Vulkan-Loader
+- https://github.com/KhronosGroup/SPIRV-Headers
+- https://github.com/KhronosGroup/SPIRV-Tools
+- https://github.com/KhronosGroup/glslang
+- https://github.com/google/shaderc
+- https://github.com/libsdl-org/SDL
+- https://github.com/lua/lua
+- https://github.com/nothings/stb
 
 # SDL_GetRendererProperties:
 - SDL_PROP_RENDERER_NAME_STRING: the name of the rendering driver
   - direct3d11, opengl, vulkan, etc...
 
-
 # Credits:
 - Grok A.I on x.
 - Github repo examples from users.
-- 

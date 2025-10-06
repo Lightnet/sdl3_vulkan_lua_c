@@ -174,6 +174,57 @@ FetchContent_MakeAvailable(stb)
 #     lua
 # )
 
+
+set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)  # Skip 
+
+set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)  # Skip unnecessary tools
+set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)  # Skip unnecessary tools
+
+
+set(SPIRV_HEADERS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(GLSLANG_TESTS OFF CACHE BOOL "" FORCE)
+
+# Fetch SPIRV-Headers (base for all)
+FetchContent_Declare(
+    spirv-headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Headers.git
+    GIT_TAG        vulkan-sdk-1.4.313.0  # Use a stable tag; check repo for latest
+    # EXCLUDE_FROM_ALL TRUE
+    # EXCLUDE_FROM_ALL
+)
+# Option to skip shaderc tests (recommended for faster builds)
+FetchContent_MakeAvailable(spirv-headers)
+
+# Fetch SPIRV-Tools (depends on spirv-headers)
+FetchContent_Declare(
+    spirv-tools
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Tools.git
+    # GIT_TAG        v2025.4  # Stable release; update as needed
+    GIT_TAG        vulkan-sdk-1.4.313.0  # Stable release; update as needed
+    # EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(spirv-tools)
+
+# Fetch glslang (depends on spirv-tools)
+FetchContent_Declare(
+    glslang
+    GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
+    GIT_TAG        16.0.0  # Stable release; update as needed
+    # EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(glslang)
+
+# Fetch shaderc (depends on glslang)
+FetchContent_Declare(
+    shaderc
+    GIT_REPOSITORY https://github.com/google/shaderc.git
+    GIT_TAG        v2025.4  # Or a specific tag like v2023.7 for stability
+    # EXCLUDE_FROM_ALL FALSE
+    # EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable(shaderc)
+
 #================================================
 # APP
 #================================================
@@ -194,31 +245,35 @@ message(STATUS "cimgui_SOURCE_DIR: >> ${cimgui_SOURCE_DIR}")
 add_executable(${APP_NAME}
     ${SRC_FILES}
     # base/base_triangle_resize_context.c
-    src/main.c
+    src/base_triangle_string.c
+    # src/main.c
     # src/window.c
 )
 
-# SDL3 
-target_link_libraries(${APP_NAME} PUBLIC SDL3::SDL3) # SDL 3.2.22
+# LIBS
+# target_link_libraries(${APP_NAME} PUBLIC SDL3::SDL3) # SDL 3.2.22
 # target_link_libraries(${APP_NAME} PRIVATE custom_cimgui) # custom cimgui
-
-# vulkan libraries
 target_link_libraries(${APP_NAME} PRIVATE 
+    SDL3::SDL3
     Vulkan::Headers # Vulkan headers
     vulkan # Vulkan loader library (from Vulkan-Loader)
+    # shaderc::shaderc_combined
+    # Vulkan::shaderc_combined
+    shaderc_combined
     lua
 )
 
 # Include directories
 target_include_directories(${APP_NAME} PUBLIC
-    ${CMAKE_SOURCE_DIR}/include             # root project
-    # ${cimgui_SOURCE_DIR}                    # cimgui
-    # ${cimgui_SOURCE_DIR}/imgui              # imgui
-    # ${cimgui_SOURCE_DIR}/imgui/backends     # imgui/backends
-    ${SDL3_SOURCE_DIR}/include              # SDL 3.2.22
-    ${vulkanheaders_SOURCE_DIR}/include              # SDL 3.2.22
-    ${stb_SOURCE_DIR}                       # font
-    ${lua_SOURCE_DIR}                       # lua
+    ${CMAKE_SOURCE_DIR}/include                     # root project
+    # ${cimgui_SOURCE_DIR}                          # cimgui
+    # ${cimgui_SOURCE_DIR}/imgui                    # imgui
+    # ${cimgui_SOURCE_DIR}/imgui/backends           # imgui/backends
+    ${SDL3_SOURCE_DIR}/include                      # SDL 3.2.22
+    ${shaderc_SOURCE_DIR}/libshaderc/include        # shaderc
+    ${vulkanheaders_SOURCE_DIR}/include             # SDL 3.2.22
+    ${stb_SOURCE_DIR}                               # font
+    ${lua_SOURCE_DIR}                               # lua
 )
 
 # for c #define
