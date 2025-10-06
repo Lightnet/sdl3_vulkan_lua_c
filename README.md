@@ -37,10 +37,32 @@ Available renderer driver 6: gpu
 Available renderer driver 7: software
 ```
 
-# Lua:
-  Lua can be easy and hard.
+# Tool:
+  Work in progress.
 
-  To expose some SDL and Vulkan api is no easy task. As need to access the table from c to lua as lua to c. To config the vulkan render set up. As well clean garbage on lua api side.
+## msys
+```
+libgcc_s_seh-1.dll
+libstdc++-6.dll
+libwinpthread-1.dll
+```
+  Note it might need from vulkan and window for windows. It depend if config correctly.
+
+## build.bat
+```bat
+@echo off
+setlocal
+set MSYS2_PATH=C:\msys64\mingw64\bin
+if not exist build mkdir build
+set PATH=%MSYS2_PATH%;%PATH%
+cd build
+cmake.exe .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=%MSYS2_PATH%\gcc.exe -DCMAKE_CXX_COMPILER=%MSYS2_PATH%\g++.exe
+cmake.exe --build . --config Debug
+endlocal
+```
+
+# Lua:
+  Lua can be easy and hard to script and code in c. Lua use tables and metatables. Required some knowlege how to proper set up c api lua to work on lua script code. There will be pros and cons to vulkan format data.
 
 ## Vulkan test:
   Work in progress. It is base sample triangle c to reference the build for lua script.
@@ -257,12 +279,10 @@ local render_pass_create_info = vulkan.create_render_pass_create_info({
 local render_pass = vulkan.create_render_pass(device, render_pass_create_info, nil)
 print("Created VkRenderPass:", tostring(render_pass))
 
-
-
 ```
 
 
-## Render test:
+## SDL Render test:
 ```lua
 -- main.txt (copied to main.lua)
 local sdl = require 'sdl'
@@ -367,4 +387,5 @@ end
 
 # Credits:
 - Grok A.I on x.
+    - translate c vulkan to lua vulkan.
 - Github repo examples from users.

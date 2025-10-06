@@ -6,6 +6,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+find_package(Threads REQUIRED)
+
 # Set C standard (since you're using .c files)
 # set(CMAKE_C_STANDARD 11)
 # set(CMAKE_C_STANDARD 99)
@@ -174,16 +176,47 @@ FetchContent_MakeAvailable(stb)
 #     lua
 # )
 
-
+# Skip unnecessary
+# set(SHADERC_ENABLE_WGSL_OUTPUT OFF CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_INSTALL ON CACHE BOOL "" FORCE)
 set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
 set(SHADERC_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)  # Skip 
+set(SHADERC_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)  # Skip 
+set(SHADERC_SKIP_COPYRIGHT_CHECK ON CACHE BOOL "" FORCE)  # Skip 
+# set(SHADERC_ENABLE_WERROR_COMPILE ON CACHE BOOL "" FORCE)  # Skip 
+set(SHADERC_ENABLE_SHARED_CRT OFF CACHE BOOL "" FORCE)  # this work as does not need other libs stand alone
+# set(SHADERC_ENABLE_SHARED_CRT ON CACHE BOOL "" FORCE)  # Skip # lib
+set(SHADERC_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)  # Skip 
+set(SHADERC_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)  # Skip 
 
 set(SPIRV_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)  # Skip unnecessary tools
+# set(SPIRV_HEADERS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+# set(SPIRV_HEADERS_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+# set(SPIRV_HEADERS_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
+
+set(SKIP_SPIRV_TOOLS_INSTALL ON CACHE BOOL "" FORCE)
 set(SPIRV_SKIP_TESTS ON CACHE BOOL "" FORCE)  # Skip unnecessary tools
 
-
-set(SPIRV_HEADERS_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXTERNAL OFF CACHE BOOL "" FORCE)
+# set(BUILD_WERROR ON CACHE BOOL "" FORCE)
 set(GLSLANG_TESTS OFF CACHE BOOL "" FORCE)
+set(GLSLANG_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(ENABLE_SPIRV ON CACHE BOOL "" FORCE)
+set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "" FORCE)
+set(ENABLE_GLSLANG_JS OFF CACHE BOOL "" FORCE)
+
+# set(ENABLE_HLSL OFF CACHE BOOL "" FORCE)
+# set(ENABLE_RTTI OFF CACHE BOOL "" FORCE)
+# set(ENABLE_EXCEPTIONS OFF CACHE BOOL "" FORCE)
+# set(ENABLE_PCH OFF CACHE BOOL "" FORCE)
+
+set(ALLOW_EXTERNAL_SPIRV_TOOLS OFF CACHE BOOL "" FORCE)
+
+# set(SPIRV_TOOLS_BUILD_STATIC ON CACHE BOOL "" FORCE)  # Build SPIRV-Tools as static
+set(SPIRV_TOOLS_BUILD_STATIC OFF CACHE BOOL "" FORCE)  # Build SPIRV-Tools as static
+
+# set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # Build shaderc as shared library (DLL)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # Build shaderc as shared library (DLL)
 
 # Fetch SPIRV-Headers (base for all)
 FetchContent_Declare(
@@ -215,6 +248,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glslang)
 
+# set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # Build shaderc as shared library (DLL)
 # Fetch shaderc (depends on glslang)
 FetchContent_Declare(
     shaderc
@@ -223,13 +257,14 @@ FetchContent_Declare(
     # EXCLUDE_FROM_ALL FALSE
     # EXCLUDE_FROM_ALL
 )
+
 FetchContent_MakeAvailable(shaderc)
 
 #================================================
 # APP
 #================================================
 
-# Application NAME
+# # Application NAME
 set(APP_NAME sdl3_lua)
 
 # Source files (add more if needed)
@@ -245,8 +280,8 @@ message(STATUS "cimgui_SOURCE_DIR: >> ${cimgui_SOURCE_DIR}")
 add_executable(${APP_NAME}
     ${SRC_FILES}
     # base/base_triangle_resize_context.c
-    src/base_triangle_string.c
-    # src/main.c
+    # src/base_triangle_string.c
+    src/main.c
     # src/window.c
 )
 
@@ -259,7 +294,11 @@ target_link_libraries(${APP_NAME} PRIVATE
     vulkan # Vulkan loader library (from Vulkan-Loader)
     # shaderc::shaderc_combined
     # Vulkan::shaderc_combined
-    shaderc_combined
+    # shaderc_combined # 675mb
+    # shaderc
+    # SPIRV-Tools-shared  # Shared library target for SPIRV-Tools
+    # glslang             # Shared library target for glslang
+    shaderc_shared      # Shared library target for shaderc
     lua
 )
 
@@ -276,20 +315,20 @@ target_include_directories(${APP_NAME} PUBLIC
     ${lua_SOURCE_DIR}                               # lua
 )
 
-# for c #define
-target_compile_definitions( ${APP_NAME} PUBLIC
-    # IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
-	# CIMGUI_DEFINE_ENUMS_AND_STRUCTS=1
-	# CIMGUI_USE_SDL3=1
-    # CIMGUI_USE_VULKAN=1
-	# CIMGUI_USE_OPENGL3=1
-)
+# # for c #define
+# target_compile_definitions( ${APP_NAME} PUBLIC
+#     # IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1
+# 	# CIMGUI_DEFINE_ENUMS_AND_STRUCTS=1
+# 	# CIMGUI_USE_SDL3=1
+#     # CIMGUI_USE_VULKAN=1
+# 	# CIMGUI_USE_OPENGL3=1
+# )
 
 # Platform-specific settings for Windows (MinGW/MSYS2)
 if (WIN32)
     # Link necessary Windows libraries for raylib
     target_link_libraries(${APP_NAME} PRIVATE
-        opengl32
+        # opengl32
         gdi32
         winmm
     )
@@ -340,3 +379,54 @@ endif()
 #     $<TARGET_FILE_DIR:${PROJECT_NAME}>/frag.spv
 #     COMMENT "Copying frag.spv to output directory"
 # )
+
+
+set(APP_TRI sdl_tri)
+
+add_executable(${APP_TRI}
+    src/base_triangle_string.c
+)
+target_link_libraries(${APP_TRI} PRIVATE 
+    SDL3::SDL3
+    Vulkan::Headers # Vulkan headers
+    vulkan # Vulkan loader library (from Vulkan-Loader)     
+    # shaderc_combined  # 600 mb
+    # SPIRV-Tools-shared                                          # Shared library target for SPIRV-Tools
+    # glslang                                                     # Shared library target for glslang
+    shaderc_shared                                              # Shared library target for shaderc
+    # shaderc                                                       # 648 mb added to application execute                                        
+    lua
+)
+
+target_include_directories(${APP_TRI} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include                                 # root project
+    # ${cimgui_SOURCE_DIR}                                      # cimgui
+    # ${cimgui_SOURCE_DIR}/imgui                                # imgui
+    # ${cimgui_SOURCE_DIR}/imgui/backends                       # imgui/backends
+    ${SDL3_SOURCE_DIR}/include                                  # SDL 3.2.22
+    ${shaderc_SOURCE_DIR}/libshaderc/include                    # shaderc
+    ${vulkanheaders_SOURCE_DIR}/include                         # SDL 3.2.22
+    ${stb_SOURCE_DIR}                                           # font
+    ${lua_SOURCE_DIR}                                           # lua
+)
+
+if (WIN32)
+    # Link necessary Windows libraries for raylib
+    target_link_libraries(${APP_TRI} PRIVATE
+        # opengl32
+        gdi32
+        winmm
+        # Threads::Threads
+    )
+
+    # Static linking for libgcc and libstdc++
+    target_link_options(${APP_TRI} PRIVATE
+        # -Wl,-Bstatic
+        # -lgcc
+        # -lstdc++
+        # -lwinpthread
+        -static-libgcc
+        -static-libstdc++  # Uncomment if C++ code is used
+        -static           # Avoid full static linking to prevent issues with system libraries
+    )
+endif()
