@@ -271,9 +271,9 @@ for i, view in ipairs(image_views) do
 end
 
 -- Clean up
-for i, fb in ipairs(framebuffers) do
-    framebuffers[i] = nil
-end
+-- for i, fb in ipairs(framebuffers) do
+--     framebuffers[i] = nil
+-- end
 
 
 -- Vertex shader source (same as C code)
