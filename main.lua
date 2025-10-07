@@ -276,6 +276,258 @@ for i, fb in ipairs(framebuffers) do
 end
 
 
+-- Vertex shader source (same as C code)
+local vertex_shader_source = [[
+#version 450
+layout(location = 0) in vec2 inPosition;
+layout(location = 1) in vec3 inColor;
+layout(location = 0) out vec3 fragColor;
+void main() {
+    gl_Position = vec4(inPosition, 0.0, 1.0);
+    fragColor = inColor;
+}
+]]
+
+-- Fragment shader source (same as C code)
+local fragment_shader_source = [[
+#version 450
+layout(location = 0) in vec3 fragColor;
+layout(location = 0) out vec4 outColor;
+void main() {
+    outColor = vec4(fragColor, 1.0);
+}
+]]
+
+-- Create extent (using surface capabilities from earlier)
+local extent = vulkan.create_extent_2d({
+    width = capabilities.currentExtentWidth, -- 800 from output
+    height = capabilities.currentExtentHeight -- 600 from output
+})
+
+-- Create shader modules
+local vert_shader_module = vulkan.create_shader_module(device, vertex_shader_source, vulkan.SHADERC_VERTEX_SHADER)
+print("Created VkShaderModule (vertex):", tostring(vert_shader_module))
+local frag_shader_module = vulkan.create_shader_module(device, fragment_shader_source, vulkan.SHADERC_FRAGMENT_SHADER)
+print("Created VkShaderModule (fragment):", tostring(frag_shader_module))
+
+-- Create shader stages
+local shader_stages = {
+    vulkan.create_pipeline_shader_stage_create_info({
+        stage = vulkan.SHADER_STAGE_VERTEX_BIT,
+        module = vert_shader_module
+    }),
+    vulkan.create_pipeline_shader_stage_create_info({
+        stage = vulkan.SHADER_STAGE_FRAGMENT_BIT,
+        module = frag_shader_module
+    })
+}
+
+-- Create vertex input binding description
+local binding_desc = vulkan.create_vertex_input_binding_description({
+    binding = 0,
+    stride = 5 * 4, -- sizeof(float) * 5 (2 for position, 3 for color)
+    inputRate = vulkan.VERTEX_INPUT_RATE_VERTEX
+})
+
+-- Create vertex input attribute descriptions
+local attrib_descs = {
+    vulkan.create_vertex_input_attribute_description({
+        location = 0,
+        binding = 0,
+        format = vulkan.FORMAT_R32G32_SFLOAT,
+        offset = 0
+    }),
+    vulkan.create_vertex_input_attribute_description({
+        location = 1,
+        binding = 0,
+        format = vulkan.FORMAT_R32G32B32_SFLOAT,
+        offset = 2 * 4 -- sizeof(float) * 2
+    })
+}
+
+-- Create vertex input state
+local vertex_input_info = vulkan.create_pipeline_vertex_input_state_create_info({
+    pVertexBindingDescriptions = { binding_desc },
+    pVertexAttributeDescriptions = attrib_descs
+})
+
+-- Create input assembly state
+local input_assembly = vulkan.create_pipeline_input_assembly_state_create_info({
+    topology = vulkan.PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    primitiveRestartEnable = false
+})
+
+print("extent.width")
+print(extent)
+-- Create viewport
+local viewport = vulkan.create_viewport({
+    x = 0.0,
+    y = 0.0,
+    width = extent.width,
+    height = extent.height,
+    minDepth = 0.0,
+    maxDepth = 1.0
+})
+
+-- Create scissor
+local scissor = vulkan.create_rect_2d({
+    offset = { x = 0, y = 0 },
+    extent = extent
+})
+
+-- Create viewport state
+local viewport_state = vulkan.create_pipeline_viewport_state_create_info({
+    pViewports = { viewport },
+    pScissors = { scissor }
+})
+
+-- Create rasterization state
+local rasterizer = vulkan.create_pipeline_rasterization_state_create_info({
+    polygonMode = vulkan.POLYGON_MODE_FILL,
+    cullMode = vulkan.CULL_MODE_NONE,
+    frontFace = vulkan.FRONT_FACE_CLOCKWISE,
+    lineWidth = 1.0
+})
+
+-- Create multisample state
+local multisampling = vulkan.create_pipeline_multisample_state_create_info({
+    rasterizationSamples = vulkan.SAMPLE_COUNT_1_BIT,
+    sampleShadingEnable = false
+})
+
+-- Create color blend attachment
+local color_blend_attachment = vulkan.create_pipeline_color_blend_attachment_state({
+    blendEnable = false,
+    colorWriteMask = vulkan.COLOR_WRITE_MASK_RGBA
+})
+
+-- Create color blend state
+local color_blending = vulkan.create_pipeline_color_blend_state_create_info({
+    pAttachments = { color_blend_attachment }
+})
+
+-- Create pipeline layout
+local pipeline_layout_info = vulkan.create_pipeline_layout_create_info({})
+local pipeline_layout = vulkan.create_pipeline_layout(device, pipeline_layout_info, nil)
+print("Created VkPipelineLayout:", tostring(pipeline_layout))
+
+-- Create graphics pipeline
+local pipeline_info = vulkan.create_graphics_pipeline_create_info({
+    pStages = shader_stages,
+    pVertexInputState = vertex_input_info,
+    pInputAssemblyState = input_assembly,
+    pViewportState = viewport_state,
+    pRasterizationState = rasterizer,
+    pMultisampleState = multisampling,
+    pColorBlendState = color_blending,
+    layout = pipeline_layout,
+    renderPass = render_pass,
+    subpass = 0
+})
+
+local graphics_pipeline = vulkan.create_graphics_pipeline(device, nil, nil, pipeline_info)
+print("Created VkPipeline:", tostring(graphics_pipeline))
+
+
+--/////////////////////////////
+
+-- Vertex data for a triangle (position: vec2, color: vec3)
+local vertices = {
+    0.0, -0.5, 1.0, 0.0, 0.0, -- Top, red
+    0.5, 0.5, 0.0, 1.0, 0.0,  -- Bottom-right, green
+    -0.5, 0.5, 0.0, 0.0, 1.0   -- Bottom-left, blue
+}
+
+-- Create vertex buffer
+local vertex_buffer_create_info = vulkan.create_buffer_create_info({
+    size = #vertices * 4, -- 3 vertices * 5 floats * sizeof(float)
+    usage = vulkan.BUFFER_USAGE_VERTEX_BUFFER_BIT
+})
+local vertex_buffer = vulkan.create_buffer(device, vertex_buffer_create_info, nil)
+print("Created VkBuffer:", tostring(vertex_buffer))
+
+-- Get memory requirements
+local mem_requirements = vulkan.get_buffer_memory_requirements(device, vertex_buffer)
+print("Memory requirements: size =", mem_requirements.size, "alignment =", mem_requirements.alignment, "memoryTypeBits =", mem_requirements.memoryTypeBits)
+
+-- Get physical device memory properties
+local mem_properties = vulkan.get_physical_device_memory_properties(selected_device)
+
+-- Find suitable memory type
+local memory_type_index = -1
+for i = 1, mem_properties.memoryTypeCount do
+    local memory_type = mem_properties.memoryTypes[i]
+    if (mem_requirements.memoryTypeBits & (1 << (i - 1))) ~= 0 then
+        if (memory_type.propertyFlags & (vulkan.MEMORY_PROPERTY_HOST_VISIBLE_BIT | vulkan.MEMORY_PROPERTY_HOST_COHERENT_BIT)) ==
+           (vulkan.MEMORY_PROPERTY_HOST_VISIBLE_BIT | vulkan.MEMORY_PROPERTY_HOST_COHERENT_BIT) then
+            memory_type_index = i - 1
+            break
+        end
+    end
+end
+if memory_type_index == -1 then
+    error("Failed to find suitable memory type")
+end
+print("Selected memory type index:", memory_type_index)
+
+-- Allocate memory
+local memory_allocate_info = vulkan.create_memory_allocate_info({
+    allocationSize = mem_requirements.size,
+    memoryTypeIndex = memory_type_index
+})
+local vertex_memory = vulkan.allocate_memory(device, memory_allocate_info, nil)
+print("Allocated VkDeviceMemory:", tostring(vertex_memory))
+
+-- Bind memory to buffer
+vulkan.bind_buffer_memory(device, vertex_buffer, vertex_memory, 0)
+
+-- Map memory and copy vertex data
+local data = vulkan.map_memory(device, vertex_memory, 0, mem_requirements.size)
+vulkan.copy_to_memory(device, data, vertices, mem_requirements.size)
+vulkan.unmap_memory(device, vertex_memory)
+
+-- Create command pool
+local command_pool_create_info = vulkan.create_command_pool_create_info({
+    queueFamilyIndex = graphics_family -- From earlier (1)
+})
+local command_pool = vulkan.create_command_pool(device, command_pool_create_info, nil)
+print("Created VkCommandPool:", tostring(command_pool))
+
+-- Allocate command buffers
+local command_buffer_allocate_info = vulkan.create_command_buffer_allocate_info({
+    commandPool = command_pool,
+    commandBufferCount = #framebuffers
+})
+local command_buffers = vulkan.allocate_command_buffers(device, command_buffer_allocate_info)
+print("Allocated", #command_buffers, "VkCommandBuffers")
+
+-- Record command buffers
+for i, framebuffer in ipairs(framebuffers) do
+    local cmd = command_buffers[i]
+    vulkan.begin_command_buffer(cmd)
+    vulkan.cmd_begin_render_pass(cmd, render_pass, framebuffer, { renderArea = { extent = extent } })
+    vulkan.cmd_bind_pipeline(cmd, graphics_pipeline)
+    vulkan.cmd_bind_vertex_buffers(cmd, 0, { vertex_buffer }, { 0 })
+    vulkan.cmd_draw(cmd, 3, 1, 0, 0) -- 3 vertices, 1 instance
+    vulkan.cmd_end_render_pass(cmd)
+    vulkan.end_command_buffer(cmd)
+    print("Recorded VkCommandBuffer", i, ":", tostring(cmd))
+end
+
+-- Clean up
+for i, cmd in ipairs(command_buffers) do
+    command_buffers[i] = nil
+end
+
+
+
+
+
+
+
+
+
+
 
 
 
