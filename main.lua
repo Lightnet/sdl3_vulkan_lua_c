@@ -256,7 +256,24 @@ local render_pass = vulkan.create_render_pass(device, render_pass_create_info, n
 print("Created VkRenderPass:", tostring(render_pass))
 
 
+-- Create framebuffers
+local framebuffers = {}
+for i, view in ipairs(image_views) do
+    local framebuffer_create_info = vulkan.create_framebuffer_create_info({
+        renderPass = render_pass,
+        pAttachments = { view },
+        width = capabilities.currentExtentWidth,
+        height = capabilities.currentExtentHeight
+    })
+    local framebuffer = vulkan.create_framebuffer(device, framebuffer_create_info, nil)
+    framebuffers[i] = framebuffer
+    print("Created VkFramebuffer", i, ":", tostring(framebuffer))
+end
 
+-- Clean up
+for i, fb in ipairs(framebuffers) do
+    framebuffers[i] = nil
+end
 
 
 

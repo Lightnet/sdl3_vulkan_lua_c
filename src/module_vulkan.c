@@ -28,6 +28,9 @@ static const char* SUBPASS_DEPENDENCY_MT = "vulkan.subpass_dependency";
 static const char* RENDER_PASS_CREATE_INFO_MT = "vulkan.render_pass_create_info";
 static const char* RENDER_PASS_MT = "vulkan.render_pass";
 
+static const char* FRAMEBUFFER_CREATE_INFO_MT = "vulkan.framebuffer_create_info";
+static const char* FRAMEBUFFER_MT = "vulkan.framebuffer";
+
 // Garbage collection metamethod for VkApplicationInfo
 static int appinfo_gc(lua_State* L) {
     lua_VkApplicationInfo* ud = (lua_VkApplicationInfo*)luaL_checkudata(L, 1, APPINFO_MT);
@@ -1576,7 +1579,134 @@ static int l_vulkan_create_render_pass(lua_State* L) {
 }
 
 
+static int framebuffer_create_info_gc(lua_State* L) {
+    lua_VkFramebufferCreateInfo* ud = (lua_VkFramebufferCreateInfo*)luaL_checkudata(L, 1, FRAMEBUFFER_CREATE_INFO_MT);
+    if (ud->pAttachments) {
+        printf("Cleaning up VkFramebufferCreateInfo attachments\n");
+        free(ud->pAttachments);
+        ud->pAttachments = NULL;
+    }
+    return 0;
+}
 
+static int framebuffer_gc(lua_State* L) {
+    lua_VkFramebuffer* ud = (lua_VkFramebuffer*)luaL_checkudata(L, 1, FRAMEBUFFER_MT);
+    if (ud->framebuffer && ud->device) {
+        printf("Cleaning up VkFramebuffer\n");
+        vkDestroyFramebuffer(ud->device, ud->framebuffer, NULL);
+        ud->framebuffer = NULL;
+        ud->device = NULL;
+    }
+    return 0;
+}
+
+void lua_push_VkFramebufferCreateInfo(lua_State* L, VkFramebufferCreateInfo* create_info, VkImageView* attachments) {
+    if (!create_info) {
+        luaL_error(L, "Cannot create userdata for null VkFramebufferCreateInfo");
+    }
+    lua_VkFramebufferCreateInfo* ud = (lua_VkFramebufferCreateInfo*)lua_newuserdata(L, sizeof(lua_VkFramebufferCreateInfo));
+    ud->create_info = *create_info;
+    ud->pAttachments = attachments;
+    luaL_setmetatable(L, FRAMEBUFFER_CREATE_INFO_MT);
+}
+
+lua_VkFramebufferCreateInfo* lua_check_VkFramebufferCreateInfo(lua_State* L, int idx) {
+    lua_VkFramebufferCreateInfo* ud = (lua_VkFramebufferCreateInfo*)luaL_checkudata(L, idx, FRAMEBUFFER_CREATE_INFO_MT);
+    return ud;
+}
+
+void lua_push_VkFramebuffer(lua_State* L, VkFramebuffer framebuffer, VkDevice device) {
+    if (!framebuffer) {
+        luaL_error(L, "Cannot create userdata for null VkFramebuffer");
+    }
+    lua_VkFramebuffer* ud = (lua_VkFramebuffer*)lua_newuserdata(L, sizeof(lua_VkFramebuffer));
+    ud->framebuffer = framebuffer;
+    ud->device = device;
+    luaL_setmetatable(L, FRAMEBUFFER_MT);
+}
+
+lua_VkFramebuffer* lua_check_VkFramebuffer(lua_State* L, int idx) {
+    lua_VkFramebuffer* ud = (lua_VkFramebuffer*)luaL_checkudata(L, idx, FRAMEBUFFER_MT);
+    if (!ud->framebuffer) {
+        luaL_error(L, "Invalid VkFramebuffer (already destroyed)");
+    }
+    return ud;
+}
+
+static int l_vulkan_create_framebuffer_create_info(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkFramebufferCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .renderPass = VK_NULL_HANDLE,
+        .attachmentCount = 0,
+        .pAttachments = NULL,
+        .width = 0,
+        .height = 0,
+        .layers = 1
+    };
+
+    VkImageView* attachments = NULL;
+
+    lua_getfield(L, 1, "renderPass");
+    if (!lua_isnil(L, -1)) {
+        lua_VkRenderPass* render_pass_ud = lua_check_VkRenderPass(L, -1);
+        create_info.renderPass = render_pass_ud->render_pass;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "pAttachments");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        create_info.attachmentCount = lua_rawlen(L, -1);
+        if (create_info.attachmentCount > 0) {
+            attachments = (VkImageView*)malloc(create_info.attachmentCount * sizeof(VkImageView));
+            if (!attachments) {
+                luaL_error(L, "Failed to allocate memory for framebuffer attachments");
+            }
+            for (uint32_t i = 0; i < create_info.attachmentCount; i++) {
+                lua_rawgeti(L, -1, i + 1);
+                lua_VkImageView* view_ud = lua_check_VkImageView(L, -1);
+                attachments[i] = view_ud->image_view;
+                lua_pop(L, 1);
+            }
+            create_info.pAttachments = attachments;
+        }
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "width");
+    if (!lua_isnil(L, -1)) {
+        create_info.width = (uint32_t)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, 1, "height");
+    if (!lua_isnil(L, -1)) {
+        create_info.height = (uint32_t)luaL_checkinteger(L, -1);
+    }
+    lua_pop(L, 1);
+
+    lua_push_VkFramebufferCreateInfo(L, &create_info, attachments);
+    return 1;
+}
+
+static int l_vulkan_create_framebuffer(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkFramebufferCreateInfo* create_info_ud = lua_check_VkFramebufferCreateInfo(L, 2);
+    luaL_checktype(L, 3, LUA_TNIL);
+
+    VkFramebuffer framebuffer;
+    VkResult result = vkCreateFramebuffer(device_ud->device, &create_info_ud->create_info, NULL, &framebuffer);
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to create framebuffer: VkResult %d", result);
+    }
+
+    lua_push_VkFramebuffer(L, framebuffer, device_ud->device);
+    return 1;
+}
 
 
 
@@ -1710,6 +1840,20 @@ static void render_pass_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
+// frame buffer
+static void framebuffer_create_info_metatable(lua_State* L) {
+    luaL_newmetatable(L, FRAMEBUFFER_CREATE_INFO_MT);
+    lua_pushcfunction(L, framebuffer_create_info_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+static void framebuffer_metatable(lua_State* L) {
+    luaL_newmetatable(L, FRAMEBUFFER_MT);
+    lua_pushcfunction(L, framebuffer_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
 
 // Module loader: Register functions
 static const struct luaL_Reg vulkan_lib[] = {
@@ -1748,6 +1892,13 @@ static const struct luaL_Reg vulkan_lib[] = {
     {"create_render_pass", l_vulkan_create_render_pass},
 
 
+
+    {"create_framebuffer", l_vulkan_create_framebuffer},
+    {"create_framebuffer_create_info", l_vulkan_create_framebuffer_create_info},
+
+    
+
+
     {NULL, NULL}
 };
 
@@ -1772,6 +1923,9 @@ int luaopen_vulkan(lua_State* L) {
     subpass_dependency_metatable(L);
     render_pass_create_info_metatable(L);
     render_pass_metatable(L);
+
+    framebuffer_create_info_metatable(L);
+    framebuffer_metatable(L);
     luaL_newlib(L, vulkan_lib);
 
     // Queue flag constants

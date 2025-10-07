@@ -100,6 +100,16 @@ typedef struct {
     VkDevice device; // For cleanup
 } lua_VkRenderPass;
 
+typedef struct {
+    VkFramebufferCreateInfo create_info;
+    VkImageView* pAttachments; // Managed array
+} lua_VkFramebufferCreateInfo;
+
+typedef struct {
+    VkFramebuffer framebuffer;
+    VkDevice device; // For cleanup
+} lua_VkFramebuffer;
+
 
 // Existing function declarations...
 void lua_push_VkApplicationInfo(lua_State* L, VkApplicationInfo* app_info, const char* app_name);
@@ -148,6 +158,12 @@ static int l_vulkan_create_render_pass_create_info(lua_State* L);
 static int l_vulkan_create_render_pass(lua_State* L);
 int luaopen_vulkan(lua_State* L);
 
-
+// Frame buffer
+void lua_push_VkFramebufferCreateInfo(lua_State* L, VkFramebufferCreateInfo* create_info, VkImageView* attachments);
+lua_VkFramebufferCreateInfo* lua_check_VkFramebufferCreateInfo(lua_State* L, int idx);
+void lua_push_VkFramebuffer(lua_State* L, VkFramebuffer framebuffer, VkDevice device);
+lua_VkFramebuffer* lua_check_VkFramebuffer(lua_State* L, int idx);
+static int l_vulkan_create_framebuffer_create_info(lua_State* L);
+static int l_vulkan_create_framebuffer(lua_State* L);
 
 #endif
