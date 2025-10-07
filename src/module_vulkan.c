@@ -3401,6 +3401,11 @@ static int memory_requirements_gc(lua_State* L) {
     return 0;
 }
 
+// Check VkMemoryRequirements from Lua
+lua_VkMemoryRequirements* lua_check_VkMemoryRequirements(lua_State* L, int idx) {
+    return (lua_VkMemoryRequirements*)luaL_checkudata(L, idx, MEMORY_REQUIREMENTS_MT);
+}
+
 // __index function for VkMemoryRequirements
 static int memory_requirements_index(lua_State* L) {
     lua_VkMemoryRequirements* ud = lua_check_VkMemoryRequirements(L, 1);
@@ -3426,10 +3431,7 @@ void lua_push_VkMemoryRequirements(lua_State* L, VkMemoryRequirements* mem_requi
     luaL_setmetatable(L, MEMORY_REQUIREMENTS_MT);
 }
 
-// Check VkMemoryRequirements from Lua
-lua_VkMemoryRequirements* lua_check_VkMemoryRequirements(lua_State* L, int idx) {
-    return (lua_VkMemoryRequirements*)luaL_checkudata(L, idx, MEMORY_REQUIREMENTS_MT);
-}
+
 
 // Create VkMemoryAllocateInfo
 static int l_vulkan_create_memory_allocate_info(lua_State* L) {

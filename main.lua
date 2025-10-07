@@ -515,33 +515,18 @@ for i, framebuffer in ipairs(framebuffers) do
 end
 
 -- Clean up
-for i, cmd in ipairs(command_buffers) do
-    command_buffers[i] = nil
-end
+-- for i, cmd in ipairs(command_buffers) do
+--     command_buffers[i] = nil
+-- end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- Create semaphores (requires new C functions)
+-- local semaphore_create_info = {
+--     sType = "VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO",
+--     pNext = nil,
+--     flags = 0
+-- }
+-- local image_available_semaphore = vulkan.create_semaphore(device, semaphore_create_info, nil)
+-- local render_finished_semaphore = vulkan.create_semaphore(device, semaphore_create_info, nil)
 
 
 
@@ -554,35 +539,33 @@ while true do
             print("Window closed.")
             return
         end
-        -- if event.type == sdl.QUIT or (event.type == sdl.WINDOW_CLOSE and event.window_id == window_id) then
-        --     print("Window closed.")
-        --     return
-        -- elseif event.type == sdl.KEY_DOWN then
-        --     print(string.format("Key pressed: %s (scancode: %d, keycode: %d, is_repeat: %s, window_id: %d)",
-        --         event.key_name, event.scancode, event.keycode, tostring(event.is_repeat), event.window_id))
-        --     if event.keycode == sdl.KEY_ESCAPE then
-        --         print("ESC pressed. Exiting.")
-        --         return
-        --     elseif event.keycode == sdl.KEY_A then
-        --         print("A key pressed! Changing to blue.")
-        --         sdl.set_render_draw_color(renderer, 0, 0, 255, 255) -- Blue
-        --     elseif event.keycode == sdl.KEY_B then
-        --         print("B key pressed! Changing to green.")
-        --         sdl.set_render_draw_color(renderer, 0, 255, 0, 255) -- Green
-        --     end
-        -- elseif event.type == sdl.KEY_UP then
-        --     print(string.format("Key released: %s (scancode: %d, keycode: %d, window_id: %d)",
-        --         event.key_name, event.scancode, event.keycode, event.window_id))
-        -- elseif event.type == sdl.MOUSE_BUTTON_DOWN then
-        --     print(string.format("Mouse button %d down at (%f, %f), clicks: %d, window_id: %d)",
-        --         event.button, event.x, event.y, event.clicks, event.window_id))
-        -- elseif event.type == sdl.MOUSE_BUTTON_UP then
-        --     print(string.format("Mouse button %d up at (%f, %f), window_id: %d)",
-        --         event.button, event.x, event.y, event.window_id))
-        -- elseif event.type == sdl.MOUSE_MOTION then
-        --     print(string.format("Mouse moved to (%f, %f), relative: (%f, %f), window_id: %d)",
-        --         event.x, event.y, event.xrel, event.yrel, event.window_id))
-        -- end
     end
 
+    -- local image_index = vulkan.acquire_next_image(device, swapchain, image_available_semaphore)
+    -- if image_index then
+    --     local submit_info = {
+    --         sType = "VK_STRUCTURE_TYPE_SUBMIT_INFO",
+    --         waitSemaphoreCount = 1,
+    --         pWaitSemaphores = { image_available_semaphore },
+    --         pWaitDstStageMask = { vulkan.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+    --         commandBufferCount = 1,
+    --         pCommandBuffers = { command_buffers[image_index + 1] },
+    --         signalSemaphoreCount = 1,
+    --         pSignalSemaphores = { render_finished_semaphore }
+    --     }
+    --     vulkan.queue_submit(queue, submit_info, nil)
+    --     local present_info = {
+    --         sType = "VK_STRUCTURE_TYPE_PRESENT_INFO_KHR",
+    --         waitSemaphoreCount = 1,
+    --         pWaitSemaphores = { render_finished_semaphore },
+    --         swapchainCount = 1,
+    --         pSwapchains = { swapchain },
+    --         pImageIndices = { image_index }
+    --     }
+    --     vulkan.queue_present(queue, present_info)
+    -- end
+    -- SDL3.Delay(10)
+
 end
+
+collectgarbage()
