@@ -46,27 +46,27 @@ print("Physical device count:", device_count)
 -- Get physical devices
 local devices = vulkan.get_devices(instance, device_count)
 print("Physical devices:")
-local selected_device = nil
+local physical_device = nil
 for i, device in ipairs(devices) do
     local props = vulkan.get_physical_device(device)
     print(string.format("  Device %d: %s (Type: %d)", i, props.deviceName, props.deviceType))
     -- Select discrete GPU (type 2) or integrated GPU (type 1) if no discrete GPU is found
     if props.deviceType == 2 then -- VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU
-        selected_device = device
-    elseif props.deviceType == 1 and not selected_device then -- VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
-        selected_device = device
+        physical_device = device
+    elseif props.deviceType == 1 and not physical_device then -- VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+        physical_device = device
     end
 end
 
 -- Check if a suitable GPU was found
-if not selected_device then
+if not physical_device then
     print("No suitable GPU found")
 else
-    print("Selected physical device:", tostring(selected_device))
+    print("Selected physical device:", tostring(physical_device))
 end
 
 -- Check device extensions
-local device_extensions_supported = vulkan.get_device_extensions(selected_device)
+local device_extensions_supported = vulkan.get_device_extensions(physical_device)
 local swapchain_supported = false
 for _, ext in ipairs(device_extensions_supported) do
     if ext == "VK_KHR_swapchain" then
@@ -88,16 +88,16 @@ print("Garbage collection triggered")
 -- Verify instance, surface, and selected device are still valid
 print("VkInstance after cleanup:", tostring(instance))
 print("VkSurfaceKHR after cleanup:", tostring(surface))
-if selected_device then
-    print("Selected physical device after cleanup:", tostring(selected_device))
+if physical_device then
+    print("Selected physical device after cleanup:", tostring(physical_device))
 end
 
 -- Get queue family count
-local queue_family_count = vulkan.get_family_count(selected_device)
+local queue_family_count = vulkan.get_family_count(physical_device)
 print("Queue family count:", queue_family_count)
 
 -- Get queue family properties
-local queue_families = vulkan.queue_families(selected_device, queue_family_count, surface)
+local queue_families = vulkan.queue_families(physical_device, queue_family_count, surface)
 print("Queue families:")
 local graphics_family, present_family = nil, nil
 for i, family in ipairs(queue_families) do
@@ -143,7 +143,7 @@ local device_create_info = vulkan.device_create_info({
 })
 
 -- Create VkDevice
-local device = vulkan.create_device(selected_device, device_create_info, nil)
+local device = vulkan.create_device(physical_device, device_create_info, nil)
 print("Created VkDevice:", tostring(device))
 
 -- Get queues
@@ -154,7 +154,7 @@ print("Present Queue:", tostring(present_queue))
 
 
 -- Get surface capabilities
-local capabilities = vulkan.get_surface_capabilities(selected_device, surface)
+local capabilities = vulkan.get_surface_capabilities(physical_device, surface)
 print("Surface Capabilities:")
 print("  Min Image Count:", capabilities.minImageCount)
 print("  Max Image Count:", capabilities.maxImageCount)
@@ -168,7 +168,7 @@ print("  Supported Composite Alpha:", capabilities.supportedCompositeAlpha)
 print("  Supported Usage Flags:", capabilities.supportedUsageFlags)
 
 -- Get surface formats
-local surface_formats = vulkan.get_surface_formats(selected_device, surface)
+local surface_formats = vulkan.get_surface_formats(physical_device, surface)
 print("Surface Formats:", #surface_formats)
 
 -- Select surface format (prefer VK_FORMAT_B8G8R8A8_SRGB with SRGB nonlinear color space)
@@ -182,7 +182,7 @@ end
 print("Selected Surface Format: format =", selected_format.format, "colorSpace =", selected_format.colorSpace)
 
 -- Get present modes
-local present_modes = vulkan.get_surface_present_modes(selected_device, surface)
+local present_modes = vulkan.get_surface_present_modes(physical_device, surface)
 print("Present Modes:", #present_modes)
 
 -- Select present mode (default to VK_PRESENT_MODE_FIFO_KHR)
@@ -451,7 +451,7 @@ local mem_requirements = vulkan.get_buffer_memory_requirements(device, vertex_bu
 print("Memory requirements: size =", mem_requirements.size, "alignment =", mem_requirements.alignment, "memoryTypeBits =", mem_requirements.memoryTypeBits)
 
 -- Get physical device memory properties
-local mem_properties = vulkan.get_physical_device_memory_properties(selected_device)
+local mem_properties = vulkan.get_physical_device_memory_properties(physical_device)
 
 -- Find suitable memory type
 local memory_type_index = -1
