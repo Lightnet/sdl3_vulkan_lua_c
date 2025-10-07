@@ -250,6 +250,23 @@ typedef struct {
     VkDevice device; // For cleanup
 } lua_VkSemaphore;
 
+// Add struct for VkSubmitInfo
+typedef struct {
+    VkSubmitInfo submit_info;
+    VkSemaphore* pWaitSemaphores; // Managed array
+    VkPipelineStageFlags* pWaitDstStageMask; // Managed array
+    VkCommandBuffer* pCommandBuffers; // Managed array
+    VkSemaphore* pSignalSemaphores; // Managed array
+} lua_VkSubmitInfo;
+
+// Add struct for VkPresentInfoKHR
+typedef struct {
+    VkPresentInfoKHR present_info;
+    VkSemaphore* pWaitSemaphores; // Managed array
+    VkSwapchainKHR* pSwapchains; // Managed array
+    uint32_t* pImageIndices; // Managed array
+} lua_VkPresentInfoKHR;
+
 
 int luaopen_vulkan(lua_State* L);
 #endif

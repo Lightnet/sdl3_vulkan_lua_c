@@ -64,6 +64,11 @@ static const char* COMMAND_BUFFER_MT = "vulkan.command_buffer";
 static const char* MEMORY_REQUIREMENTS_MT = "vulkan.memory_requirements";
 static const char* PHYSICAL_DEVICE_MEMORY_PROPERTIES_MT = "vulkan.physical_device_memory_properties";
 
+static const char* SEMAPHORE_CREATE_INFO_MT = "vulkan.semaphore_create_info";
+static const char* SEMAPHORE_MT = "vulkan.semaphore";
+static const char* SUBMIT_INFO_MT = "vulkan.submit_info";
+static const char* PRESENT_INFO_MT = "vulkan.present_info_khr";
+
 
 // Garbage collection for VkExtent2D (no dynamic allocations)
 static int extent_2d_gc(lua_State* L) {
@@ -985,13 +990,32 @@ void lua_push_VkSwapchainKHR(lua_State* L, VkSwapchainKHR swapchain, VkDevice de
     luaL_setmetatable(L, SWAPCHAIN_MT);
 }
 
-// Check VkSwapchainKHR
+// Check VkSwapchainKHR userdata
 lua_VkSwapchainKHR* lua_check_VkSwapchainKHR(lua_State* L, int idx) {
     lua_VkSwapchainKHR* ud = (lua_VkSwapchainKHR*)luaL_checkudata(L, idx, SWAPCHAIN_MT);
     if (!ud->swapchain) {
         luaL_error(L, "Invalid VkSwapchainKHR (already destroyed)");
     }
     return ud;
+}
+
+// Recreate swapchain
+static int l_vulkan_recreate_swapchain(lua_State* L) {
+    lua_VkDevice* device_ud = (lua_VkDevice*)luaL_checkudata(L, 1, DEVICE_MT);
+    lua_VkSwapchainKHR* old_swapchain_ud = (lua_VkSwapchainKHR*)luaL_checkudata(L, 2, SWAPCHAIN_MT);
+    lua_VkSwapchainCreateInfoKHR* create_info_ud = (lua_VkSwapchainCreateInfoKHR*)luaL_checkudata(L, 3, SWAPCHAIN_CREATE_INFO_MT);
+    VkSwapchainKHR new_swapchain;
+    VkResult result = vkCreateSwapchainKHR(device_ud->device, &create_info_ud->swapchain_create_info, NULL, &new_swapchain);
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to recreate swapchain: %d", result);
+    }
+    // Destroy old swapchain
+    if (old_swapchain_ud->swapchain) {
+        vkDestroySwapchainKHR(device_ud->device, old_swapchain_ud->swapchain, NULL);
+        old_swapchain_ud->swapchain = new_swapchain; // Update old userdata to new swapchain
+    }
+    lua_push_VkSwapchainKHR(L, new_swapchain, device_ud->device);
+    return 1;
 }
 
 // Create VkSwapchainCreateInfoKHR: vulkan.create_swapchain_create_info(table)
@@ -3540,6 +3564,487 @@ static int l_vulkan_get_physical_device_memory_properties(lua_State* L) {
     return 1;
 }
 
+
+// Garbage collection for VkSemaphoreCreateInfo (minimal, no allocations)
+static int semaphore_create_info_gc(lua_State* L) {
+    printf("Cleaning up VkSemaphoreCreateInfo\n");
+    return 0;
+}
+
+// Garbage collection for VkSemaphore
+static int semaphore_gc(lua_State* L) {
+    lua_VkSemaphore* ud = (lua_VkSemaphore*)luaL_checkudata(L, 1, SEMAPHORE_MT);
+    if (ud->semaphore && ud->device) {
+        printf("Cleaning up VkSemaphore\n");
+        vkDestroySemaphore(ud->device, ud->semaphore, NULL);
+        ud->semaphore = NULL;
+        ud->device = NULL;
+    }
+    return 0;
+}
+
+// Garbage collection for VkSubmitInfo
+static int submit_info_gc(lua_State* L) {
+    lua_VkSubmitInfo* ud = (lua_VkSubmitInfo*)luaL_checkudata(L, 1, SUBMIT_INFO_MT);
+    if (ud->pWaitSemaphores) {
+        free(ud->pWaitSemaphores);
+        ud->pWaitSemaphores = NULL;
+    }
+    if (ud->pWaitDstStageMask) {
+        free(ud->pWaitDstStageMask);
+        ud->pWaitDstStageMask = NULL;
+    }
+    if (ud->pCommandBuffers) {
+        free(ud->pCommandBuffers);
+        ud->pCommandBuffers = NULL;
+    }
+    if (ud->pSignalSemaphores) {
+        free(ud->pSignalSemaphores);
+        ud->pSignalSemaphores = NULL;
+    }
+    return 0;
+}
+
+// Garbage collection for VkPresentInfoKHR
+static int present_info_gc(lua_State* L) {
+    lua_VkPresentInfoKHR* ud = (lua_VkPresentInfoKHR*)luaL_checkudata(L, 1, PRESENT_INFO_MT);
+    if (ud->pWaitSemaphores) {
+        free(ud->pWaitSemaphores);
+        ud->pWaitSemaphores = NULL;
+    }
+    if (ud->pSwapchains) {
+        free(ud->pSwapchains);
+        ud->pSwapchains = NULL;
+    }
+    if (ud->pImageIndices) {
+        free(ud->pImageIndices);
+        ud->pImageIndices = NULL;
+    }
+    return 0;
+}
+
+// Push VkSemaphore as userdata
+void lua_push_VkSemaphore(lua_State* L, VkSemaphore semaphore, VkDevice device) {
+    if (!semaphore) {
+        luaL_error(L, "Cannot create userdata for null VkSemaphore");
+    }
+    lua_VkSemaphore* ud = (lua_VkSemaphore*)lua_newuserdata(L, sizeof(lua_VkSemaphore));
+    ud->semaphore = semaphore;
+    ud->device = device;
+    luaL_setmetatable(L, SEMAPHORE_MT);
+}
+
+// Check VkSemaphore userdata
+lua_VkSemaphore* lua_check_VkSemaphore(lua_State* L, int idx) {
+    lua_VkSemaphore* ud = (lua_VkSemaphore*)luaL_checkudata(L, idx, SEMAPHORE_MT);
+    if (!ud->semaphore) {
+        luaL_error(L, "Invalid VkSemaphore (already destroyed)");
+    }
+    return ud;
+}
+
+// Push VkSubmitInfo as userdata
+void lua_push_VkSubmitInfo(lua_State* L, VkSubmitInfo* submit_info, VkSemaphore* wait_semaphores, VkPipelineStageFlags* wait_stages, VkCommandBuffer* command_buffers, VkSemaphore* signal_semaphores) {
+    if (!submit_info) {
+        luaL_error(L, "Cannot create userdata for null VkSubmitInfo");
+    }
+    lua_VkSubmitInfo* ud = (lua_VkSubmitInfo*)lua_newuserdata(L, sizeof(lua_VkSubmitInfo));
+    ud->submit_info = *submit_info;
+    ud->pWaitSemaphores = wait_semaphores;
+    ud->pWaitDstStageMask = wait_stages;
+    ud->pCommandBuffers = command_buffers;
+    ud->pSignalSemaphores = signal_semaphores;
+    luaL_setmetatable(L, SUBMIT_INFO_MT);
+}
+
+// Check VkSubmitInfo userdata
+lua_VkSubmitInfo* lua_check_VkSubmitInfo(lua_State* L, int idx) {
+    lua_VkSubmitInfo* ud = (lua_VkSubmitInfo*)luaL_checkudata(L, idx, SUBMIT_INFO_MT);
+    return ud;
+}
+
+// Push VkPresentInfoKHR as userdata
+void lua_push_VkPresentInfoKHR(lua_State* L, VkPresentInfoKHR* present_info, VkSemaphore* wait_semaphores, VkSwapchainKHR* swapchains, uint32_t* image_indices) {
+    if (!present_info) {
+        luaL_error(L, "Cannot create userdata for null VkPresentInfoKHR");
+    }
+    lua_VkPresentInfoKHR* ud = (lua_VkPresentInfoKHR*)lua_newuserdata(L, sizeof(lua_VkPresentInfoKHR));
+    ud->present_info = *present_info;
+    ud->pWaitSemaphores = wait_semaphores;
+    ud->pSwapchains = swapchains;
+    ud->pImageIndices = image_indices;
+    luaL_setmetatable(L, PRESENT_INFO_MT);
+}
+
+// Check VkPresentInfoKHR userdata
+lua_VkPresentInfoKHR* lua_check_VkPresentInfoKHR(lua_State* L, int idx) {
+    lua_VkPresentInfoKHR* ud = (lua_VkPresentInfoKHR*)luaL_checkudata(L, idx, PRESENT_INFO_MT);
+    return ud;
+}
+
+
+// Create VkSemaphoreCreateInfo
+static int l_vulkan_create_semaphore_create_info(lua_State* L) {
+    VkSemaphoreCreateInfo create_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    lua_newuserdata(L, sizeof(VkSemaphoreCreateInfo));
+    *(VkSemaphoreCreateInfo*)lua_touserdata(L, -1) = create_info;
+    return 1;
+}
+
+
+// Lua: create_semaphore(device, create_info)
+static int l_vulkan_create_semaphore(lua_State* L) {
+    lua_VkDevice* device_ud = (lua_VkDevice*)luaL_checkudata(L, 1, DEVICE_MT);
+    VkSemaphoreCreateInfo* create_info = (VkSemaphoreCreateInfo*)lua_touserdata(L, 2);
+    VkSemaphore semaphore;
+    VkResult result = vkCreateSemaphore(device_ud->device, create_info, NULL, &semaphore);
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to create semaphore: %d", result);
+    }
+    lua_push_VkSemaphore(L, semaphore, device_ud->device);
+    return 1;
+}
+
+// Acquire next image
+static int l_vulkan_acquire_next_image_khr(lua_State* L) {
+    lua_VkDevice* device_ud = (lua_VkDevice*)luaL_checkudata(L, 1, DEVICE_MT);
+    lua_VkSwapchainKHR* swapchain_ud = (lua_VkSwapchainKHR*)luaL_checkudata(L, 2, SWAPCHAIN_MT);
+    uint64_t timeout = luaL_checkinteger(L, 3);
+    lua_VkSemaphore* semaphore_ud = lua_isnil(L, 4) ? NULL : (lua_VkSemaphore*)luaL_checkudata(L, 4, SEMAPHORE_MT);
+    VkFence fence = lua_isnil(L, 5) ? VK_NULL_HANDLE : *(VkFence*)lua_touserdata(L, 5);
+    uint32_t image_index;
+    VkResult result = vkAcquireNextImageKHR(device_ud->device, swapchain_ud->swapchain, timeout, semaphore_ud ? semaphore_ud->semaphore : VK_NULL_HANDLE, fence, &image_index);
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to acquire next image: %d", result);
+    }
+    lua_pushinteger(L, image_index + 1); // Convert to 1-based index for Lua
+    return 1;
+}
+
+// Create VkSubmitInfo
+static int l_vulkan_create_submit_info(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkSubmitInfo submit_info = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+    VkSemaphore* wait_semaphores = NULL;
+    uint32_t wait_semaphore_count = 0;
+    VkPipelineStageFlags* wait_stages = NULL;
+    VkCommandBuffer* command_buffers = NULL;
+    uint32_t command_buffer_count = 0;
+    VkSemaphore* signal_semaphores = NULL;
+    uint32_t signal_semaphore_count = 0;
+
+    // Get pWaitSemaphores
+    lua_getfield(L, 1, "pWaitSemaphores");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        wait_semaphore_count = lua_rawlen(L, -1);
+        wait_semaphores = (VkSemaphore*)malloc(wait_semaphore_count * sizeof(VkSemaphore));
+        for (size_t i = 0; i < wait_semaphore_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkSemaphore* sem_ud = lua_check_VkSemaphore(L, -1);
+            wait_semaphores[i] = sem_ud->semaphore;
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    // Get pWaitDstStageMask
+    lua_getfield(L, 1, "pWaitDstStageMask");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        wait_stages = (VkPipelineStageFlags*)malloc(wait_semaphore_count * sizeof(VkPipelineStageFlags));
+        for (size_t i = 0; i < wait_semaphore_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            wait_stages[i] = (VkPipelineStageFlags)luaL_checkinteger(L, -1);
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    // Get pCommandBuffers
+    lua_getfield(L, 1, "pCommandBuffers");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        command_buffer_count = lua_rawlen(L, -1);
+        command_buffers = (VkCommandBuffer*)malloc(command_buffer_count * sizeof(VkCommandBuffer));
+        for (size_t i = 0; i < command_buffer_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkCommandBuffer* cmd_ud = (lua_VkCommandBuffer*)luaL_checkudata(L, -1, COMMAND_BUFFER_MT);
+            command_buffers[i] = cmd_ud->command_buffer;
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    // Get pSignalSemaphores
+    lua_getfield(L, 1, "pSignalSemaphores");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        signal_semaphore_count = lua_rawlen(L, -1);
+        signal_semaphores = (VkSemaphore*)malloc(signal_semaphore_count * sizeof(VkSemaphore));
+        for (size_t i = 0; i < signal_semaphore_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkSemaphore* sem_ud = lua_check_VkSemaphore(L, -1);
+            signal_semaphores[i] = sem_ud->semaphore;
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    submit_info.waitSemaphoreCount = wait_semaphore_count;
+    submit_info.pWaitSemaphores = wait_semaphores;
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.commandBufferCount = command_buffer_count;
+    submit_info.pCommandBuffers = command_buffers;
+    submit_info.signalSemaphoreCount = signal_semaphore_count;
+    submit_info.pSignalSemaphores = signal_semaphores;
+
+    lua_push_VkSubmitInfo(L, &submit_info, wait_semaphores, wait_stages, command_buffers, signal_semaphores);
+    return 1;
+}
+
+// Lua: acquire_next_image(device, swapchain, semaphore)
+static int l_vulkan_acquire_next_image(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkSwapchainKHR* swapchain_ud = (lua_VkSwapchainKHR*)luaL_checkudata(L, 2, SWAPCHAIN_MT);
+    lua_VkSemaphore* semaphore_ud = lua_check_VkSemaphore(L, 3);
+
+    uint32_t image_index;
+    VkResult result = vkAcquireNextImageKHR(device_ud->device, swapchain_ud->swapchain, UINT64_MAX, semaphore_ud->semaphore, VK_NULL_HANDLE, &image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        lua_pushnil(L);
+        return 1;
+    } else if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to acquire next image: %d", result);
+    }
+
+    lua_pushinteger(L, image_index);
+    return 1;
+}
+
+// Lua: queue_submit(queue, submit_info_table)
+// Submit to queue
+static int l_vulkan_queue_submit(lua_State* L) {
+    lua_VkQueue* queue_ud = (lua_VkQueue*)luaL_checkudata(L, 1, QUEUE_MT);
+    luaL_checktype(L, 2, LUA_TTABLE);
+    VkFence fence = lua_isnil(L, 3) ? VK_NULL_HANDLE : *(VkFence*)lua_touserdata(L, 3);
+
+    uint32_t submit_count = lua_rawlen(L, 2);
+    VkSubmitInfo* submit_infos = (VkSubmitInfo*)malloc(submit_count * sizeof(VkSubmitInfo));
+    for (size_t i = 0; i < submit_count; i++) {
+        lua_rawgeti(L, 2, i + 1);
+        lua_VkSubmitInfo* submit_ud = lua_check_VkSubmitInfo(L, -1);
+        submit_infos[i] = submit_ud->submit_info;
+        lua_pop(L, 1);
+    }
+
+    VkResult result = vkQueueSubmit(queue_ud->queue, submit_count, submit_infos, fence);
+    free(submit_infos);
+    lua_pushinteger(L, result);
+    return 1;
+}
+
+// Create VkPresentInfoKHR
+static int l_vulkan_create_present_info_khr(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    VkPresentInfoKHR present_info = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+
+    VkSemaphore* wait_semaphores = NULL;
+    uint32_t wait_semaphore_count = 0;
+    VkSwapchainKHR* swapchains = NULL;
+    uint32_t swapchain_count = 0;
+    uint32_t* image_indices = NULL;
+
+    // Get pWaitSemaphores
+    lua_getfield(L, 1, "pWaitSemaphores");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        wait_semaphore_count = lua_rawlen(L, -1);
+        wait_semaphores = (VkSemaphore*)malloc(wait_semaphore_count * sizeof(VkSemaphore));
+        for (size_t i = 0; i < wait_semaphore_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkSemaphore* sem_ud = lua_check_VkSemaphore(L, -1);
+            wait_semaphores[i] = sem_ud->semaphore;
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    // Get pSwapchains
+    lua_getfield(L, 1, "pSwapchains");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        swapchain_count = lua_rawlen(L, -1);
+        swapchains = (VkSwapchainKHR*)malloc(swapchain_count * sizeof(VkSwapchainKHR));
+        for (size_t i = 0; i < swapchain_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkSwapchainKHR* swapchain_ud = (lua_VkSwapchainKHR*)luaL_checkudata(L, -1, SWAPCHAIN_MT);
+            swapchains[i] = swapchain_ud->swapchain;
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    // Get pImageIndices
+    lua_getfield(L, 1, "pImageIndices");
+    if (!lua_isnil(L, -1)) {
+        luaL_checktype(L, -1, LUA_TTABLE);
+        image_indices = (uint32_t*)malloc(swapchain_count * sizeof(uint32_t));
+        for (size_t i = 0; i < swapchain_count; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            image_indices[i] = (uint32_t)luaL_checkinteger(L, -1) - 1; // Convert Lua 1-based to C 0-based
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+
+    present_info.waitSemaphoreCount = wait_semaphore_count;
+    present_info.pWaitSemaphores = wait_semaphores;
+    present_info.swapchainCount = swapchain_count;
+    present_info.pSwapchains = swapchains;
+    present_info.pImageIndices = image_indices;
+
+    lua_push_VkPresentInfoKHR(L, &present_info, wait_semaphores, swapchains, image_indices);
+    return 1;
+}
+
+// Present to queue
+static int l_vulkan_queue_present_khr(lua_State* L) {
+    lua_VkQueue* queue_ud = (lua_VkQueue*)luaL_checkudata(L, 1, QUEUE_MT);
+    lua_VkPresentInfoKHR* present_info_ud = lua_check_VkPresentInfoKHR(L, 2);
+    VkResult result = vkQueuePresentKHR(queue_ud->queue, &present_info_ud->present_info);
+    lua_pushinteger(L, result);
+    return 1;
+}
+
+// Queue wait idle
+static int l_vulkan_queue_wait_idle(lua_State* L) {
+    lua_VkQueue* queue_ud = (lua_VkQueue*)luaL_checkudata(L, 1, QUEUE_MT);
+    VkResult result = vkQueueWaitIdle(queue_ud->queue);
+    lua_pushinteger(L, result);
+    return 1;
+}
+
+
+// Lua: queue_present(queue, present_info_table)
+static int l_vulkan_queue_present(lua_State* L) {
+    lua_VkQueue* queue_ud = (lua_VkQueue*)luaL_checkudata(L, 1, QUEUE_MT);
+    luaL_checktype(L, 2, LUA_TTABLE);
+
+    VkPresentInfoKHR present_info = {0};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    // Extract waitSemaphores
+    lua_getfield(L, 2, "waitSemaphoreCount");
+    present_info.waitSemaphoreCount = (uint32_t)luaL_optinteger(L, -1, 0);
+    lua_pop(L, 1);
+
+    VkSemaphore* wait_semaphores = NULL;
+    if (present_info.waitSemaphoreCount > 0) {
+        lua_getfield(L, 2, "pWaitSemaphores");
+        wait_semaphores = malloc(present_info.waitSemaphoreCount * sizeof(VkSemaphore));
+        for (uint32_t i = 0; i < present_info.waitSemaphoreCount; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkSemaphore* sem = lua_check_VkSemaphore(L, -1);
+            wait_semaphores[i] = sem->semaphore;
+            lua_pop(L, 1);
+        }
+        present_info.pWaitSemaphores = wait_semaphores;
+        lua_pop(L, 1);
+    }
+
+    // Extract swapchains
+    lua_getfield(L, 2, "swapchainCount");
+    present_info.swapchainCount = (uint32_t)luaL_optinteger(L, -1, 0);
+    lua_pop(L, 1);
+
+    VkSwapchainKHR* swapchains = NULL;
+    if (present_info.swapchainCount > 0) {
+        lua_getfield(L, 2, "pSwapchains");
+        swapchains = malloc(present_info.swapchainCount * sizeof(VkSwapchainKHR));
+        for (uint32_t i = 0; i < present_info.swapchainCount; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            lua_VkSwapchainKHR* sc = (lua_VkSwapchainKHR*)luaL_checkudata(L, -1, SWAPCHAIN_MT);
+            swapchains[i] = sc->swapchain;
+            lua_pop(L, 1);
+        }
+        present_info.pSwapchains = swapchains;
+        lua_pop(L, 1);
+    }
+
+    // Extract pImageIndices
+    uint32_t* image_indices = NULL;
+    if (present_info.swapchainCount > 0) {
+        lua_getfield(L, 2, "pImageIndices");
+        image_indices = malloc(present_info.swapchainCount * sizeof(uint32_t));
+        for (uint32_t i = 0; i < present_info.swapchainCount; i++) {
+            lua_rawgeti(L, -1, i + 1);
+            image_indices[i] = (uint32_t)lua_tointeger(L, -1);
+            lua_pop(L, 1);
+        }
+        present_info.pImageIndices = image_indices;
+        lua_pop(L, 1);
+    }
+
+    VkResult result = vkQueuePresentKHR(queue_ud->queue, &present_info);
+
+    free(wait_semaphores);
+    free(swapchains);
+    free(image_indices);
+
+    if (result != VK_SUCCESS) {
+        luaL_error(L, "Failed to present queue: %d", result);
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+// Function to set up semaphore_create_info metatable
+static void semaphore_create_info_metatable(lua_State* L) {
+    luaL_newmetatable(L, SEMAPHORE_CREATE_INFO_MT);
+    lua_pushcfunction(L, semaphore_create_info_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+// Metatable setup for VkSemaphore
+static void semaphore_metatable(lua_State* L) {
+    luaL_newmetatable(L, SEMAPHORE_MT);
+    lua_pushcfunction(L, semaphore_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+// Metatable setup for VkSubmitInfo
+static void submit_info_metatable(lua_State* L) {
+    luaL_newmetatable(L, SUBMIT_INFO_MT);
+    lua_pushcfunction(L, submit_info_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+// Metatable setup for VkPresentInfoKHR
+static void present_info_metatable(lua_State* L) {
+    luaL_newmetatable(L, PRESENT_INFO_MT);
+    lua_pushcfunction(L, present_info_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 1);
+}
+
+
 // Metatable for VkPhysicalDeviceMemoryProperties
 static void physical_device_memory_properties_metatable(lua_State* L) {
     luaL_newmetatable(L, PHYSICAL_DEVICE_MEMORY_PROPERTIES_MT);
@@ -3951,17 +4456,9 @@ static void command_buffer_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
-
-
-
-
-
-
-
-
-
-
-
+//=========================================================
+// 
+//=========================================================
 
 // Module loader: Register functions
 static const struct luaL_Reg vulkan_lib[] = {
@@ -4047,6 +4544,17 @@ static const struct luaL_Reg vulkan_lib[] = {
     {"unmap_memory", l_vulkan_unmap_memory},
     
 
+    {"create_semaphore_create_info", l_vulkan_create_semaphore_create_info},
+    {"create_semaphore", l_vulkan_create_semaphore},
+    {"acquire_next_image_khr", l_vulkan_acquire_next_image_khr},
+    {"create_submit_info", l_vulkan_create_submit_info},
+    {"queue_submit", l_vulkan_queue_submit},
+    {"create_present_info_khr", l_vulkan_create_present_info_khr},
+    {"queue_present_khr", l_vulkan_queue_present_khr},
+    {"queue_wait_idle", l_vulkan_queue_wait_idle},
+
+    {"recreate_swapchain", l_vulkan_recreate_swapchain},
+
 
     {NULL, NULL}
 };
@@ -4108,6 +4616,11 @@ int luaopen_vulkan(lua_State* L) {
 
     physical_device_memory_properties_metatable(L);
 
+    // semaphore_create_info_metatable(L);
+    // semaphore_metatable(L);
+    semaphore_metatable(L);
+    submit_info_metatable(L);
+    present_info_metatable(L);
 
     luaL_newlib(L, vulkan_lib);
 
@@ -4194,6 +4707,13 @@ int luaopen_vulkan(lua_State* L) {
     lua_setfield(L, -2, "COMMAND_BUFFER_LEVEL_PRIMARY");
     lua_pushinteger(L, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     lua_setfield(L, -2, "COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT");
+
+    lua_pushinteger(L, VK_SUCCESS);
+    lua_setfield(L, -2, "VK_SUCCESS");
+    lua_pushinteger(L, UINT64_MAX);
+    lua_setfield(L, -2, "UINT64_MAX");
+    lua_pushinteger(L, VK_ERROR_OUT_OF_DATE_KHR);
+    lua_setfield(L, -2, "VK_ERROR_OUT_OF_DATE_KHR");
 
     return 1;
 }

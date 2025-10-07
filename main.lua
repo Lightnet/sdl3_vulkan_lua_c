@@ -1,4 +1,4 @@
--- main.txt (copied to main.lua)
+-- main.lua
 local sdl = require 'sdl'
 local vulkan = require 'vulkan'
 
@@ -38,7 +38,6 @@ createinfo = nil
 local surface = vulkan.create_surface(window, instance, nil)
 print("Created VkSurfaceKHR:", tostring(surface))
 
-
 -- Get physical device count
 local device_count = vulkan.get_device_count(instance)
 print("Physical device count:", device_count)
@@ -61,9 +60,9 @@ end
 -- Check if a suitable GPU was found
 if not physical_device then
     print("No suitable GPU found")
-else
-    print("Selected physical device:", tostring(physical_device))
+    return
 end
+print("Selected physical device:", tostring(physical_device))
 
 -- Check device extensions
 local device_extensions_supported = vulkan.get_device_extensions(physical_device)
@@ -79,7 +78,6 @@ if not swapchain_supported then
     return
 end
 print("VK_KHR_swapchain is supported")
-
 
 -- Force garbage collection to trigger __gc metamethods
 collectgarbage()
@@ -120,16 +118,16 @@ for i, family in ipairs(queue_families) do
         present_family = i
     end
     if graphics_family and present_family then
-        break -- Early break to match C code
+        break
     end
 end
 
 if not graphics_family or not present_family then
     print("No suitable queue families found")
-else
-    print("Selected graphics family:", graphics_family)
-    print("Selected present family:", present_family)
+    return
 end
+print("Selected graphics family:", graphics_family)
+print("Selected present family:", present_family)
 
 -- Create VkDeviceQueueCreateInfo
 local queue_create_infos = vulkan.queue_create_infos(graphics_family, present_family)
@@ -152,7 +150,6 @@ local present_queue = vulkan.get_device_queue(device, present_family, 0)
 print("Graphics Queue:", tostring(graphics_queue))
 print("Present Queue:", tostring(present_queue))
 
-
 -- Get surface capabilities
 local capabilities = vulkan.get_surface_capabilities(physical_device, surface)
 print("Surface Capabilities:")
@@ -172,7 +169,7 @@ local surface_formats = vulkan.get_surface_formats(physical_device, surface)
 print("Surface Formats:", #surface_formats)
 
 -- Select surface format (prefer VK_FORMAT_B8G8R8A8_SRGB with SRGB nonlinear color space)
-local selected_format = surface_formats[1] -- Default to first format
+local selected_format = surface_formats[1]
 for i, fmt in ipairs(surface_formats) do
     if fmt.format == vulkan.FORMAT_B8G8R8A8_SRGB and fmt.colorSpace == vulkan.COLOR_SPACE_SRGB_NONLINEAR_KHR then
         selected_format = fmt
@@ -189,20 +186,22 @@ print("Present Modes:", #present_modes)
 local selected_present_mode = vulkan.PRESENT_MODE_FIFO_KHR
 print("Selected Present Mode:", selected_present_mode)
 
--- Create VkSwapchainCreateInfoKHR
-local swapchain_create_info = vulkan.create_swapchain_create_info({
-    surface = surface,
-    minImageCount = capabilities.minImageCount,
-    imageFormat = selected_format.format,
-    imageColorSpace = selected_format.colorSpace,
-    imageExtent = { width = capabilities.currentExtentWidth, height = capabilities.currentExtentHeight },
-    imageArrayLayers = 1,
-    imageUsage = vulkan.IMAGE_USAGE_COLOR_ATTACHMENT_BIT, -- Common usage for rendering
-    presentMode = selected_present_mode
-})
-
 -- Create VkSwapchainKHR
-local swapchain = vulkan.create_swapchain(device, swapchain_create_info, nil)
+local function create_swapchain(device, surface, capabilities, selected_format, selected_present_mode)
+    local swapchain_create_info = vulkan.create_swapchain_create_info({
+        surface = surface,
+        minImageCount = capabilities.minImageCount,
+        imageFormat = selected_format.format,
+        imageColorSpace = selected_format.colorSpace,
+        imageExtent = { width = capabilities.currentExtentWidth, height = capabilities.currentExtentHeight },
+        imageArrayLayers = 1,
+        imageUsage = vulkan.IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        presentMode = selected_present_mode
+    })
+    return vulkan.create_swapchain(device, swapchain_create_info, nil), swapchain_create_info
+end
+
+local swapchain, swapchain_create_info = create_swapchain(device, surface, capabilities, selected_format, selected_present_mode)
 print("Created VkSwapchainKHR:", tostring(swapchain))
 
 -- Get swapchain images
@@ -214,69 +213,73 @@ for i, img in ipairs(swapchain_images) do
 end
 
 -- Create image views for swapchain images
-local image_views = {}
-for i, img in ipairs(swapchain_images) do
-    local image_view_create_info = vulkan.create_image_view_create_info({
-        image = img,
-        format = selected_format.format
-    })
-    local image_view = vulkan.create_image_view(device, image_view_create_info, nil)
-    image_views[i] = image_view
-    print("Created VkImageView", i, ":", tostring(image_view))
+local function create_image_views(device, swapchain_images, selected_format)
+    local image_views = {}
+    for i, img in ipairs(swapchain_images) do
+        local image_view_create_info = vulkan.create_image_view_create_info({
+            image = img,
+            format = selected_format.format
+        })
+        local image_view = vulkan.create_image_view(device, image_view_create_info, nil)
+        image_views[i] = image_view
+        print("Created VkImageView", i, ":", tostring(image_view))
+    end
+    return image_views
 end
 
--- Create color attachment
+local image_views = create_image_views(device, swapchain_images, selected_format)
+
+-- Create render pass
 local color_attachment = vulkan.create_attachment_description({
     format = selected_format.format
 })
 
--- Create color attachment reference
 local color_attachment_ref = {
     attachment = 0,
     layout = vulkan.IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 }
 
--- Create subpass description
 local subpass = vulkan.create_subpass_description({
     pColorAttachments = { color_attachment_ref }
 })
 
--- Create subpass dependency
 local dependency = vulkan.create_subpass_dependency({})
 
--- Create render pass create info
 local render_pass_create_info = vulkan.create_render_pass_create_info({
     pAttachments = { color_attachment },
     pSubpasses = { subpass },
     pDependencies = { dependency }
 })
 
--- Create render pass
 local render_pass = vulkan.create_render_pass(device, render_pass_create_info, nil)
 print("Created VkRenderPass:", tostring(render_pass))
 
-
 -- Create framebuffers
-local framebuffers = {}
-for i, view in ipairs(image_views) do
-    local framebuffer_create_info = vulkan.create_framebuffer_create_info({
-        renderPass = render_pass,
-        pAttachments = { view },
-        width = capabilities.currentExtentWidth,
-        height = capabilities.currentExtentHeight
-    })
-    local framebuffer = vulkan.create_framebuffer(device, framebuffer_create_info, nil)
-    framebuffers[i] = framebuffer
-    print("Created VkFramebuffer", i, ":", tostring(framebuffer))
+local function create_framebuffers(device, render_pass, image_views, width, height)
+    local framebuffers = {}
+    for i, view in ipairs(image_views) do
+        local framebuffer_create_info = vulkan.create_framebuffer_create_info({
+            renderPass = render_pass,
+            pAttachments = { view },
+            width = width,
+            height = height
+        })
+        local framebuffer = vulkan.create_framebuffer(device, framebuffer_create_info, nil)
+        framebuffers[i] = framebuffer
+        print("Created VkFramebuffer", i, ":", tostring(framebuffer))
+    end
+    return framebuffers
 end
 
--- Clean up
--- for i, fb in ipairs(framebuffers) do
---     framebuffers[i] = nil
--- end
+local framebuffers = create_framebuffers(device, render_pass, image_views, capabilities.currentExtentWidth, capabilities.currentExtentHeight)
 
+-- Create extent
+local extent = vulkan.create_extent_2d({
+    width = capabilities.currentExtentWidth,
+    height = capabilities.currentExtentHeight
+})
 
--- Vertex shader source (same as C code)
+-- Vertex shader source
 local vertex_shader_source = [[
 #version 450
 layout(location = 0) in vec2 inPosition;
@@ -288,7 +291,7 @@ void main() {
 }
 ]]
 
--- Fragment shader source (same as C code)
+-- Fragment shader source
 local fragment_shader_source = [[
 #version 450
 layout(location = 0) in vec3 fragColor;
@@ -297,12 +300,6 @@ void main() {
     outColor = vec4(fragColor, 1.0);
 }
 ]]
-
--- Create extent (using surface capabilities from earlier)
-local extent = vulkan.create_extent_2d({
-    width = capabilities.currentExtentWidth, -- 800 from output
-    height = capabilities.currentExtentHeight -- 600 from output
-})
 
 -- Create shader modules
 local vert_shader_module = vulkan.create_shader_module(device, vertex_shader_source, vulkan.SHADERC_VERTEX_SHADER)
@@ -341,7 +338,7 @@ local attrib_descs = {
         location = 1,
         binding = 0,
         format = vulkan.FORMAT_R32G32B32_SFLOAT,
-        offset = 2 * 4 -- sizeof(float) * 2
+        offset = 2 * 4
     })
 }
 
@@ -357,8 +354,6 @@ local input_assembly = vulkan.create_pipeline_input_assembly_state_create_info({
     primitiveRestartEnable = false
 })
 
-print("extent.width")
-print(extent)
 -- Create viewport
 local viewport = vulkan.create_viewport({
     x = 0.0,
@@ -428,9 +423,6 @@ local pipeline_info = vulkan.create_graphics_pipeline_create_info({
 local graphics_pipeline = vulkan.create_graphics_pipeline(device, nil, nil, pipeline_info)
 print("Created VkPipeline:", tostring(graphics_pipeline))
 
-
---/////////////////////////////
-
 -- Vertex data for a triangle (position: vec2, color: vec3)
 local vertices = {
     0.0, -0.5, 1.0, 0.0, 0.0, -- Top, red
@@ -488,49 +480,83 @@ vulkan.unmap_memory(device, vertex_memory)
 
 -- Create command pool
 local command_pool_create_info = vulkan.create_command_pool_create_info({
-    queueFamilyIndex = graphics_family -- From earlier (1)
+    queueFamilyIndex = graphics_family
 })
 local command_pool = vulkan.create_command_pool(device, command_pool_create_info, nil)
 print("Created VkCommandPool:", tostring(command_pool))
 
--- Allocate command buffers
-local command_buffer_allocate_info = vulkan.create_command_buffer_allocate_info({
-    commandPool = command_pool,
-    commandBufferCount = #framebuffers
-})
-local command_buffers = vulkan.allocate_command_buffers(device, command_buffer_allocate_info)
-print("Allocated", #command_buffers, "VkCommandBuffers")
+-- Create command buffers
+local function create_command_buffers(device, command_pool, framebuffers, render_pass, extent, graphics_pipeline, vertex_buffer)
+    local command_buffer_allocate_info = vulkan.create_command_buffer_allocate_info({
+        commandPool = command_pool,
+        commandBufferCount = #framebuffers
+    })
+    local command_buffers = vulkan.allocate_command_buffers(device, command_buffer_allocate_info)
+    print("Allocated", #command_buffers, "VkCommandBuffers")
 
--- Record command buffers
-for i, framebuffer in ipairs(framebuffers) do
-    local cmd = command_buffers[i]
-    vulkan.begin_command_buffer(cmd)
-    vulkan.cmd_begin_render_pass(cmd, render_pass, framebuffer, { renderArea = { extent = extent } })
-    vulkan.cmd_bind_pipeline(cmd, graphics_pipeline)
-    vulkan.cmd_bind_vertex_buffers(cmd, 0, { vertex_buffer }, { 0 })
-    vulkan.cmd_draw(cmd, 3, 1, 0, 0) -- 3 vertices, 1 instance
-    vulkan.cmd_end_render_pass(cmd)
-    vulkan.end_command_buffer(cmd)
-    print("Recorded VkCommandBuffer", i, ":", tostring(cmd))
+    for i, framebuffer in ipairs(framebuffers) do
+        local cmd = command_buffers[i]
+        vulkan.begin_command_buffer(cmd)
+        vulkan.cmd_begin_render_pass(cmd, render_pass, framebuffer, { renderArea = { extent = extent } })
+        vulkan.cmd_bind_pipeline(cmd, graphics_pipeline)
+        vulkan.cmd_bind_vertex_buffers(cmd, 0, { vertex_buffer }, { 0 })
+        vulkan.cmd_draw(cmd, 3, 1, 0, 0)
+        vulkan.cmd_end_render_pass(cmd)
+        vulkan.end_command_buffer(cmd)
+        print("Recorded VkCommandBuffer", i, ":", tostring(cmd))
+    end
+    return command_buffers
 end
 
--- Clean up
--- for i, cmd in ipairs(command_buffers) do
---     command_buffers[i] = nil
--- end
+local command_buffers = create_command_buffers(device, command_pool, framebuffers, render_pass, extent, graphics_pipeline, vertex_buffer)
 
--- Create semaphores (requires new C functions)
--- local semaphore_create_info = {
---     sType = "VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO",
---     pNext = nil,
---     flags = 0
--- }
--- local image_available_semaphore = vulkan.create_semaphore(device, semaphore_create_info, nil)
--- local render_finished_semaphore = vulkan.create_semaphore(device, semaphore_create_info, nil)
+-- Create semaphores
+local semaphore_info = vulkan.create_semaphore_create_info({})
+local image_available_semaphore = vulkan.create_semaphore(device, semaphore_info, nil)
+local render_finished_semaphore = vulkan.create_semaphore(device, semaphore_info, nil)
+print("Created imageAvailableSemaphore:", tostring(image_available_semaphore))
+print("Created renderFinishedSemaphore:", tostring(render_finished_semaphore))
 
+-- Function to recreate swapchain and dependent resources
+local function recreate_swapchain_and_resources()
+    -- Wait for device to be idle
+    vulkan.queue_wait_idle(graphics_queue)
+    vulkan.queue_wait_idle(present_queue)
 
+    -- Clean up old resources
+    for i, fb in ipairs(framebuffers) do
+        framebuffers[i] = nil
+    end
+    for i, view in ipairs(image_views) do
+        image_views[i] = nil
+    end
+    collectgarbage() -- Trigger cleanup of old framebuffers and image views
 
-print("Window and vulkan created (wip). Press ESC or close to exit.")
+    -- Get updated surface capabilities
+    capabilities = vulkan.get_surface_capabilities(physical_device, surface)
+
+    -- Update extent
+    extent.width = capabilities.currentExtentWidth
+    extent.height = capabilities.currentExtentHeight
+
+    -- Recreate swapchain
+    swapchain_create_info.imageExtent = { width = capabilities.currentExtentWidth, height = capabilities.currentExtentHeight }
+    local new_swapchain = vulkan.recreate_swapchain(device, swapchain, swapchain_create_info)
+    swapchain = new_swapchain
+
+    -- Recreate swapchain images and image views
+    swapchain_images = vulkan.get_swapchain_images(device, swapchain)
+    print("Recreated Swapchain Images:", #swapchain_images)
+    image_views = create_image_views(device, swapchain_images, selected_format)
+
+    -- Recreate framebuffers
+    framebuffers = create_framebuffers(device, render_pass, image_views, capabilities.currentExtentWidth, capabilities.currentExtentHeight)
+
+    -- Recreate command buffers
+    command_buffers = create_command_buffers(device, command_pool, framebuffers, render_pass, extent, graphics_pipeline, vertex_buffer)
+end
+
+print("Window and vulkan created. Press ESC or close to exit.")
 
 while true do
     local events = sdl.poll_events()
@@ -538,34 +564,58 @@ while true do
         if event.type == sdl.QUIT or (event.type == sdl.WINDOW_CLOSE and event.window_id == window_id) then
             print("Window closed.")
             return
+        elseif event.type == sdl.KEY_DOWN and event.keycode == sdl.KEY_ESCAPE then
+            print("ESC pressed.")
+            return
+        elseif event.type == sdl.WINDOW_RESIZED or event.type == sdl.WINDOW_SIZE_CHANGED then
+            print("Window resized, recreating swapchain...")
+            recreate_swapchain_and_resources()
         end
     end
 
-    -- local image_index = vulkan.acquire_next_image(device, swapchain, image_available_semaphore)
-    -- if image_index then
-    --     local submit_info = {
-    --         sType = "VK_STRUCTURE_TYPE_SUBMIT_INFO",
-    --         waitSemaphoreCount = 1,
-    --         pWaitSemaphores = { image_available_semaphore },
-    --         pWaitDstStageMask = { vulkan.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
-    --         commandBufferCount = 1,
-    --         pCommandBuffers = { command_buffers[image_index + 1] },
-    --         signalSemaphoreCount = 1,
-    --         pSignalSemaphores = { render_finished_semaphore }
-    --     }
-    --     vulkan.queue_submit(queue, submit_info, nil)
-    --     local present_info = {
-    --         sType = "VK_STRUCTURE_TYPE_PRESENT_INFO_KHR",
-    --         waitSemaphoreCount = 1,
-    --         pWaitSemaphores = { render_finished_semaphore },
-    --         swapchainCount = 1,
-    --         pSwapchains = { swapchain },
-    --         pImageIndices = { image_index }
-    --     }
-    --     vulkan.queue_present(queue, present_info)
-    -- end
-    -- SDL3.Delay(10)
+    -- Acquire next image
+    local success, image_index = pcall(vulkan.acquire_next_image_khr, device, swapchain, vulkan.UINT64_MAX, image_available_semaphore, nil)
+    if not success then
+        if image_index == vulkan.VK_ERROR_OUT_OF_DATE_KHR then
+            print("Swapchain out of date, recreating...")
+            recreate_swapchain_and_resources()
+            image_index = vulkan.acquire_next_image_khr(device, swapchain, vulkan.UINT64_MAX, image_available_semaphore, nil)
+        else
+            error("Failed to acquire next image: " .. tostring(image_index))
+        end
+    end
 
+    -- Create submit info
+    local wait_stages = { vulkan.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }
+    local submit_info = vulkan.create_submit_info({
+        pWaitSemaphores = { image_available_semaphore },
+        pWaitDstStageMask = wait_stages,
+        pCommandBuffers = { command_buffers[image_index] },
+        pSignalSemaphores = { render_finished_semaphore }
+    })
+
+    -- Submit to queue
+    local result = vulkan.queue_submit(graphics_queue, { submit_info }, nil)
+    if result ~= vulkan.VK_SUCCESS then
+        print("Failed to submit draw command buffer: ", result)
+    end
+
+    -- Create present info
+    local present_info = vulkan.create_present_info_khr({
+        pWaitSemaphores = { render_finished_semaphore },
+        pSwapchains = { swapchain },
+        pImageIndices = { image_index }
+    })
+
+    -- Present to queue
+    local present_result = vulkan.queue_present_khr(present_queue, present_info)
+    if present_result == vulkan.VK_ERROR_OUT_OF_DATE_KHR then
+        print("Swapchain out of date during present, recreating...")
+        recreate_swapchain_and_resources()
+    elseif present_result ~= vulkan.VK_SUCCESS then
+        print("Failed to present: ", present_result)
+    end
+
+    -- Wait for queue to be idle
+    vulkan.queue_wait_idle(present_queue)
 end
-
-collectgarbage()
