@@ -4,16 +4,26 @@
 
 # Status:
 - Prototype
-- Current working on vulkan set up test.
+- working on improve the code.
 
 # Program languages:
 - c language
-- cmake
+- cmake 3.x
+- lua 5.4
 
 # Libraries:
 - SDL 3.2.22
 - Lua 5.4
 - Vulkan sdk 1.4 from github
+- stb ( n/a )
+- cimgui ( n/a )
+- spirv-headers  ( n/a ) ( shader )
+- spirv-tools ( n/a ) ( shader )
+- sglslang  ( n/a ) ( shader )
+- shaderc  ( n/a ) ( shader )
+    - require
+        - SPIRV-Tools
+        - glslang
 
   Note using the cmake to fetchcontent from github build and compile.
 
@@ -24,21 +34,30 @@
   By using lua script to expose SDL api events and vulkan api set up sample triangle 2D.
 
 # Goals:
-
-  Note due to limited AI agent messages memory. Rebuilding take time.
-
+  To able to expose all struct for vulkan api to able to create 3D but due to limited of the translate which will have lag when translate layers from c to lua and lua to c.
+  
   Need to refine and test lua script and vulkan api to translate.
+
+  Well it required some warpper to handle some idea ways.
 
 ## notes:
 - If too much code added and it will be hard for AI to build triangle if there too many struct create ref table.
-- Note there will be lag if there print logs.
+- There will be lag if there a lot print logs.
+- Due to limited AI agent messages memory. Rebuilding take time.
 
 # Todolist:
 - [x] simple triangle
 - [ ] break down to able to expose api for lua
+- [ ] font
+- [ ] image
+- [ ] 3d cube
+- [ ] debug layer
+- [ ] ...
 
 # Project Files:
-## module vulkan
+  This is work in progress for testing files and scripts.
+
+## Module Vulkan
 ```
 - include
     - module_sdl.h ( line 29 )
@@ -48,20 +67,20 @@
     - module_sdl.c ( lines 830 )
     - module_vulkan.c ( lines 2861 )
 ```
-## test files:
+
+## Test files:
 ```
 - window.c // test
 - base_triangle.c // shader file spv
 - base_triangle_string.c // triangle string
 ```
-## examples:
+## Examples:
 ```
 draw_shapes.lua (SDL renderer test)
 renderer.lua (SDL renderer test)
 geometry.lua (SDL renderer test)
 input_test.lua (SDL input test)
 ```
-
 
 # SDL 3.2
 
