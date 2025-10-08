@@ -1,7 +1,7 @@
 -- main.txt (copied to main.lua)
 local sdl = require 'sdl'
 
-sdl.init()
+sdl.init(vulkan.SDL_INIT_VIDEO)
 
 local window = sdl.create_window("SDL3 Renderer Demo", 800, 600, sdl.WINDOW_RESIZABLE)
 local window_id = window.windowID
@@ -91,8 +91,6 @@ while true do
         {x=600, y=200}
     })
 
-
-
     -- Set draw color to red and draw a line
     sdl.set_render_draw_color(renderer, 255, 0, 0, 255)
     sdl.render_line(renderer, 100, 100, 700, 500)
@@ -104,3 +102,8 @@ while true do
     -- Present the renderer
     sdl.render_present(renderer)
 end
+
+sdl.destroy_window(window)
+window = nil
+sdl.quit()
+

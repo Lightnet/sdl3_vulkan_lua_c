@@ -1,6 +1,6 @@
 local sdl = require 'sdl'
 
-sdl.init()
+sdl.init(vulkan.SDL_INIT_VIDEO)
 
 -- Create a resizable window with flags.
 local window = sdl.create_window("Resizable SDL3 Window", 800, 600, sdl.WINDOW_RESIZABLE)
@@ -16,5 +16,9 @@ while true do
         end
     end
 end
+
+sdl.destroy_window(window)
+window = nil
+sdl.quit()
 
 print("Window closed.")

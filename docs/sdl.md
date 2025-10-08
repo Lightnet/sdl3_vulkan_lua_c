@@ -8,6 +8,16 @@
 SDL_Window* window = SDL_CreateWindow("SDL 3 Lua", 800, 600, 0);
 ```
 
+```
+Available renderer driver 0: direct3d11
+Available renderer driver 1: direct3d12
+Available renderer driver 2: direct3d
+Available renderer driver 3: opengl
+Available renderer driver 4: opengles2
+Available renderer driver 5: vulkan
+Available renderer driver 6: gpu
+Available renderer driver 7: software
+```
 ```c
 SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
 ```
@@ -22,10 +32,11 @@ SDL_Log("Renderer created: name=%s, max_texture_size=%lld", name, (long long)max
  - SDL_PROP_RENDERER_NAME_STRING: the name of the rendering driver
  - SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER: the maximum texture width and height
 
-# can't use:
-repeat can't be use due to lua is a reserved keyword in Lua.
+# Reserved Keyword:
+- repeat can't be use due to lua is a reserved keyword in Lua.
 
-# events:
+# Events:
+```
 Changed event constants to match your Lua script:SDL_EVENT_QUIT → sdl.QUIT
 SDL_EVENT_WINDOW_CLOSE_REQUESTED → sdl.WINDOW_CLOSE
 SDL_EVENT_KEY_DOWN → sdl.KEY_DOWN
@@ -33,6 +44,81 @@ SDL_EVENT_KEY_UP → sdl.KEY_UP
 SDL_EVENT_MOUSE_BUTTON_DOWN → sdl.MOUSE_BUTTON_DOWN
 SDL_EVENT_MOUSE_BUTTON_UP → sdl.MOUSE_BUTTON_UP
 SDL_EVENT_MOUSE_MOTION → sdl.MOUSE_MOTION
+```
+
+# SDL:
+```c
+#include <SDL3/SDL.h>
+```
+```lua
+local sdl = require 'sdl'
+```
+
+# SDL_Init:
+```c
+if (!SDL_Init(flags))
+```
+```lua
+sdl.init(vulkan.SDL_INIT_VIDEO) 
+```
+
+# SDL_PollEvent:
+```c
+SDL_Event e;
+while (SDL_PollEvent(&e)) {}
+```
+```lua
+local events = sdl.poll_events()
+```
+
+# SDL_Quit:
+```c
+SDL_Quit();
+```
+```lua
+sdl.quit()
+```
+
+# SDL_CreateWindow:
+```c
+SDL_Window* win = SDL_CreateWindow(title, w, h, flags)
+```
+```lua
+sdl.create_window()
+```
+
+# SDL_CreateRenderer:
+```c
+SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL)
+```
+```lua
+local renderer, err = sdl.create_renderer(window)
+```
+
+# :
+
+```c
+```
+```lua
+```
+
+# :
+
+```c
+```
+```lua
+```
+
+
+
+
+
+
+
+
+
+
+
 
 # links:
 - https://wiki.libsdl.org/SDL3/SDL_CreateRenderer
