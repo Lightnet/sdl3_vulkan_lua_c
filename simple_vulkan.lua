@@ -3,11 +3,11 @@ local sdl = require 'sdl'
 local vulkan = require 'vulkan'
 
 sdl.init(sdl.INIT_VIDEO)
-local window = sdl.create_window("SDL3 Vulkan Demo", 800, 600, sdl.WINDOW_VULKAN | sdl.WINDOW_RESIZABLE)
+local window = sdl.create_window("SDL3 Vulkan Lua 5.4 Demo", 800, 600, sdl.WINDOW_VULKAN | sdl.WINDOW_RESIZABLE)
 local window_id = window.windowID
 
 local appinfo = vulkan.create_vk_application_info({
-    application_name = "Vulkan SDL3 Test",
+    application_name = "Vulkan SDL3 Lua Test",
     application_version = vulkan.make_version(1, 0, 0),
     engine_name = "LuaJIT Vulkan",
     engine_version = vulkan.make_version(1, 0, 0),

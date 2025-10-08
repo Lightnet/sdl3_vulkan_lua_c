@@ -291,7 +291,6 @@ static int l_vulkan_create_info(lua_State* L) {
     return 1;
 }
 
-
 // Create Vulkan instance: vulkan.create_instance(create_info)
 static int l_vulkan_create_instance(lua_State* L) {
     lua_VkInstanceCreateInfo* create_info_ud = lua_check_VkInstanceCreateInfo(L, 1);
@@ -474,9 +473,9 @@ static void physical_device_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
-
+//===============================================
 // family and device
-
+//===============================================
 // Garbage collection for VkDevice
 static int device_gc(lua_State* L) {
     lua_VkDevice* ud = (lua_VkDevice*)luaL_checkudata(L, 1, DEVICE_MT);
@@ -615,8 +614,6 @@ static int l_vulkan_get_physical_devices_properties(lua_State* L) {
     return 1;
 }
 
-
-
 // Create VkDeviceCreateInfo: vulkan.create_device_info({queue_families, extensions})
 static int l_vulkan_create_device_info(lua_State* L) {
     luaL_checktype(L, 1, LUA_TTABLE);
@@ -754,8 +751,9 @@ static void device_create_info_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
+//===============================================
 // queue
-
+//===============================================
 // Garbage collection for VkQueue
 static int queue_gc(lua_State* L) {
     lua_VkQueue* ud = (lua_VkQueue*)luaL_checkudata(L, 1, QUEUE_MT);
@@ -885,7 +883,9 @@ static int lua_getfield_integer(lua_State* L, int index, const char* field) {
     return value;
 }
 
-
+//===============================================
+// SWAPCHAIN
+//===============================================
 // Create swapchain: vulkan.create_swap_chain_KHR(device, {surface, min_image_count, format, color_space, extent, present_mode, ...})
 static int l_vulkan_create_swap_chain_KHR(lua_State* L) {
     lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
@@ -1012,8 +1012,6 @@ static int l_vulkan_create_swap_chain_KHR(lua_State* L) {
     return 1;
 }
 
-
-
 // Metatable setup
 static void queue_metatable(lua_State* L) {
     luaL_newmetatable(L, QUEUE_MT);
@@ -1031,9 +1029,9 @@ static void swapchain_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
-
+//===============================================
 // images 
-
+//===============================================
 // Garbage collection for VkImageView
 static int image_view_gc(lua_State* L) {
     lua_VkImageView* ud = (lua_VkImageView*)luaL_checkudata(L, 1, IMAGE_VIEW_MT);
@@ -1190,8 +1188,6 @@ static int l_vulkan_create_image_view(lua_State* L) {
     return 1;
 }
 
-
-
 // Metatable setup
 static void image_view_metatable(lua_State* L) {
     luaL_newmetatable(L, IMAGE_VIEW_MT);
@@ -1200,7 +1196,9 @@ static void image_view_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
+//===============================================
 // render pass
+//===============================================
 // Garbage collection for VkRenderPass
 static int render_pass_gc(lua_State* L) {
     lua_VkRenderPass* ud = (lua_VkRenderPass*)luaL_checkudata(L, 1, RENDER_PASS_MT);
@@ -1433,7 +1431,9 @@ static void render_pass_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
+//===============================================
 // Framebuffer
+//===============================================
 // Garbage collection for VkFramebuffer
 static int framebuffer_gc(lua_State* L) {
     lua_VkFramebuffer* ud = (lua_VkFramebuffer*)luaL_checkudata(L, 1, FRAMEBUFFER_MT);
@@ -1534,7 +1534,9 @@ static void framebuffer_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
+//===============================================
 // shader
+//===============================================
 // Garbage collection for VkShaderModule
 static int shader_module_gc(lua_State* L) {
     lua_VkShaderModule* ud = (lua_VkShaderModule*)luaL_checkudata(L, 1, SHADER_MODULE_MT);
@@ -1921,7 +1923,10 @@ static void pipeline_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
+
+//===============================================
 // semaphore, fence, command
+//===============================================
 // Garbage collection for VkSemaphore
 static int semaphore_gc(lua_State* L) {
     lua_VkSemaphore* ud = (lua_VkSemaphore*)luaL_checkudata(L, 1, SEMAPHORE_MT);
@@ -2663,7 +2668,6 @@ static int l_vulkan_get_physical_device_surface_support_KHR(lua_State* L) {
     return 1;
 }
 
-
 static int l_vulkan_destroy_swapchain_khr(lua_State* L) {
     lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
     lua_VkSwapchainKHR* swapchain_ud = lua_check_VkSwapchainKHR(L, 2);
@@ -2673,15 +2677,120 @@ static int l_vulkan_destroy_swapchain_khr(lua_State* L) {
 }
 
 
+// Destroy semaphore
+static int l_vulkan_destroy_semaphore(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkSemaphore* semaphore_ud = lua_check_VkSemaphore(L, 2);
+    if (semaphore_ud->semaphore != VK_NULL_HANDLE) {
+        vkDestroySemaphore(device_ud->device, semaphore_ud->semaphore, NULL);
+        semaphore_ud->semaphore = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy fence
+static int l_vulkan_destroy_fence(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkFence* fence_ud = lua_check_VkFence(L, 2);
+    if (fence_ud->fence != VK_NULL_HANDLE) {
+        vkDestroyFence(device_ud->device, fence_ud->fence, NULL);
+        fence_ud->fence = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy command pool
+static int l_vulkan_destroy_command_pool(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkCommandPool* command_pool_ud = lua_check_VkCommandPool(L, 2);
+    if (command_pool_ud->command_pool != VK_NULL_HANDLE) {
+        vkDestroyCommandPool(device_ud->device, command_pool_ud->command_pool, NULL);
+        command_pool_ud->command_pool = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy pipeline
+static int l_vulkan_destroy_pipeline(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkPipeline* pipeline_ud = lua_check_VkPipeline(L, 2);
+    if (pipeline_ud->pipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(device_ud->device, pipeline_ud->pipeline, NULL);
+        pipeline_ud->pipeline = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy pipeline layout
+static int l_vulkan_destroy_pipeline_layout(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkPipelineLayout* pipeline_layout_ud = lua_check_VkPipelineLayout(L, 2);
+    if (pipeline_layout_ud->pipeline_layout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(device_ud->device, pipeline_layout_ud->pipeline_layout, NULL);
+        pipeline_layout_ud->pipeline_layout = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy shader module
+static int l_vulkan_destroy_shader_module(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkShaderModule* shader_module_ud = lua_check_VkShaderModule(L, 2);
+    if (shader_module_ud->shader_module != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(device_ud->device, shader_module_ud->shader_module, NULL);
+        shader_module_ud->shader_module = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy render pass
+static int l_vulkan_destroy_render_pass(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    lua_VkRenderPass* render_pass_ud = lua_check_VkRenderPass(L, 2);
+    if (render_pass_ud->render_pass != VK_NULL_HANDLE) {
+        vkDestroyRenderPass(device_ud->device, render_pass_ud->render_pass, NULL);
+        render_pass_ud->render_pass = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy device
+static int l_vulkan_destroy_device(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    if (device_ud->device != VK_NULL_HANDLE) {
+        vkDestroyDevice(device_ud->device, NULL);
+        device_ud->device = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy surface (VK_KHR_surface)
+static int l_vulkan_destroy_surface_KHR(lua_State* L) {
+    lua_VkInstance* instance_ud = lua_check_VkInstance(L, 1);
+    lua_VkSurfaceKHR* surface_ud = lua_check_VkSurfaceKHR(L, 2);
+    if (surface_ud->surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(instance_ud->instance, surface_ud->surface, NULL);
+        surface_ud->surface = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
+
+// Destroy instance
+static int l_vulkan_destroy_instance(lua_State* L) {
+    lua_VkInstance* instance_ud = lua_check_VkInstance(L, 1);
+    if (instance_ud->instance != VK_NULL_HANDLE) {
+        vkDestroyInstance(instance_ud->instance, NULL);
+        instance_ud->instance = VK_NULL_HANDLE; // Prevent double destruction
+    }
+    return 0;
+}
 
 
 
 
-
-
-
-
+//===============================================
 // Module loader
+//===============================================
 static const struct luaL_Reg vulkan_lib[] = {
     {"create_vk_application_info", l_vulkan_create_vk_application_info},
     {"make_version", l_vulkan_make_version},
@@ -2716,7 +2825,6 @@ static const struct luaL_Reg vulkan_lib[] = {
     {"create_command_pool", l_vulkan_create_command_pool},
     {"create_allocate_command_buffers", l_vulkan_create_allocate_command_buffers},
 
-
     {"wait_for_fences", l_vulkan_wait_for_fences},
     {"reset_fences", l_vulkan_reset_fences},
     {"acquire_next_image_KHR", l_vulkan_acquire_next_image_KHR},
@@ -2734,12 +2842,22 @@ static const struct luaL_Reg vulkan_lib[] = {
     {"destroy_framebuffer", l_vulkan_destroy_framebuffer},
     {"destroy_image_view", l_vulkan_destroy_image_view},
 
-
     {"destroy_swapchain_khr", l_vulkan_destroy_swapchain_khr},
 
     {"get_physical_device_surface_support_KHR", l_vulkan_get_physical_device_surface_support_KHR},
     {"cmd_set_viewport", l_vulkan_cmd_set_viewport},
     {"cmd_set_scissor", l_vulkan_cmd_set_scissor},
+
+    {"destroy_semaphore", l_vulkan_destroy_semaphore},
+    {"destroy_fence", l_vulkan_destroy_fence},
+    {"destroy_command_pool", l_vulkan_destroy_command_pool},
+    {"destroy_pipeline", l_vulkan_destroy_pipeline},
+    {"destroy_pipeline_layout", l_vulkan_destroy_pipeline_layout},
+    {"destroy_shader_module", l_vulkan_destroy_shader_module},
+    {"destroy_render_pass", l_vulkan_destroy_render_pass},
+    {"destroy_device", l_vulkan_destroy_device},
+    {"destroy_surface_KHR", l_vulkan_destroy_surface_KHR},
+    {"destroy_instance", l_vulkan_destroy_instance},
 
     {NULL, NULL}
 };
@@ -2859,3 +2977,6 @@ int luaopen_vulkan(lua_State* L) {
 
     return 1;
 }
+//===============================================
+// 
+//===============================================
