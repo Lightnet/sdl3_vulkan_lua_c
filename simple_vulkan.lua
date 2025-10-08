@@ -498,6 +498,8 @@ local function cleanup()
     vulkan.destroy_surface_KHR(instance, surface)
     vulkan.destroy_instance(instance)
     sdl.destroy_window(window)
+    window = nil
+    sdl.quit()
 end
 
 local running = true

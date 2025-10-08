@@ -743,6 +743,13 @@ static int l_sdl_destroy_window(lua_State* L) {
     return 0;
 }
 
+// SDL Quit: sdl.quit()
+static int l_sdl_quit(lua_State* L) {
+    SDL_Quit();
+    fprintf(stderr, "[SDL] Called SDL_Quit\n");
+    return 0;
+}
+
 //===============================================
 // sdl_lib
 //===============================================
@@ -766,6 +773,7 @@ static const struct luaL_Reg sdl_lib[] = {
     {"create_texture", l_sdl_create_texture},
     {"render_geometry", l_sdl_render_geometry},
     {"destroy_window", l_sdl_destroy_window},
+    {"quit", l_sdl_quit}, 
     {NULL, NULL}
 };
 

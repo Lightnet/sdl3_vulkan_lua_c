@@ -1,3 +1,7 @@
+// check script name load or use args if exist for load file.
+// main entry point
+// module set up for sdl and vulkan
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
@@ -19,6 +23,15 @@ static int file_exists(const char* path) {
         return 1; // File exists.
     }
     return 0; // File does not exist.
+}
+
+// Check if the file has a .lua extension.
+static int has_lua_extension(const char* path) {
+    const char* ext = strrchr(path, '.'); // Find the last '.' in the path.
+    if (ext && strcmp(ext, ".lua") == 0) {
+        return 1; // Has .lua extension.
+    }
+    return 0; // Does not have .lua extension.
 }
 
 int main(int argc, char* argv[]) {
@@ -49,6 +62,13 @@ int main(int argc, char* argv[]) {
         if (argc < 2) {
             fprintf(stderr, "Usage: %s [<lua_script_path>]\n", argv[0]);
         }
+        lua_close(L);
+        return 1;
+    }
+
+    // Check if the script has a .lua extension.
+    if (!has_lua_extension(script_path)) {
+        fprintf(stderr, "Error: Script '%s' does not have a .lua extension\n", script_path);
         lua_close(L);
         return 1;
     }
