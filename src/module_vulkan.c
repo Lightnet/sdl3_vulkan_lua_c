@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "module_vulkan.h" // For lua_SDL_Window
+#include <shaderc/shaderc.h>
 
 // Metatable names
 static const char* APP_INFO_MT = "vulkan.app_info";
@@ -2786,6 +2787,83 @@ static int l_vulkan_destroy_instance(lua_State* L) {
 }
 
 
+// Create VkShaderModule from GLSL source string: vulkan.create_shader_module_str(device, source, kind)
+static int l_vulkan_create_shader_module_str(lua_State* L) {
+    lua_VkDevice* device_ud = lua_check_VkDevice(L, 1);
+    const char* source = luaL_checkstring(L, 2); // GLSL source code
+    int shader_kind = luaL_checkinteger(L, 3);   // Shader kind (e.g., shaderc_glsl_vertex_shader)
+
+    if (!device_ud->device) {
+        luaL_error(L, "Invalid Vulkan device (already destroyed)");
+    }
+
+    // Initialize shaderc compiler
+    shaderc_compiler_t compiler = shaderc_compiler_initialize();
+    if (!compiler) {
+        luaL_error(L, "Failed to initialize shaderc compiler");
+    }
+
+    // Create compilation options
+    shaderc_compile_options_t options = shaderc_compile_options_initialize();
+    if (!options) {
+        shaderc_compiler_release(compiler);
+        luaL_error(L, "Failed to initialize shaderc compilation options");
+    }
+
+    // Set source language to GLSL
+    shaderc_compile_options_set_source_language(options, shaderc_source_language_glsl);
+
+    // Compile GLSL to SPIR-V
+    shaderc_compilation_result_t result = shaderc_compile_into_spv(
+        compiler,
+        source,
+        strlen(source),
+        (shaderc_shader_kind)shader_kind,
+        "shader", // Input file name (arbitrary for string input)
+        "main",  // Entry point name
+        options
+    );
+
+    // Check compilation status
+    if (shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success) {
+        const char* error_msg = shaderc_result_get_error_message(result);
+        shaderc_result_release(result);
+        shaderc_compile_options_release(options);
+        shaderc_compiler_release(compiler);
+        luaL_error(L, "Shader compilation failed: %s", error_msg ? error_msg : "Unknown error");
+    }
+
+    // Get SPIR-V binary
+    size_t spirv_size = shaderc_result_get_length(result);
+    const char* spirv_data = shaderc_result_get_bytes(result);
+
+    // Create VkShaderModule
+    VkShaderModuleCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = spirv_size,
+        .pCode = (const uint32_t*)spirv_data
+    };
+
+    VkShaderModule shader_module;
+    VkResult res = vkCreateShaderModule(device_ud->device, &create_info, NULL, &shader_module);
+    if (res != VK_SUCCESS) {
+        shaderc_result_release(result);
+        shaderc_compile_options_release(options);
+        shaderc_compiler_release(compiler);
+        luaL_error(L, "Failed to create shader module: VkResult %d", res);
+    }
+
+    // Clean up shaderc resources
+    shaderc_result_release(result);
+    shaderc_compile_options_release(options);
+    shaderc_compiler_release(compiler);
+
+    // Push shader module as userdata
+    lua_push_VkShaderModule(L, shader_module, device_ud->device);
+    return 1;
+}
+
+
 //===============================================
 // Module loader
 //===============================================
@@ -2814,7 +2892,9 @@ static const struct luaL_Reg vulkan_lib[] = {
 
     {"create_framebuffer", l_vulkan_create_framebuffer},
 
-    {"create_shader_module", l_vulkan_create_shader_module},
+    {"create_shader_module", l_vulkan_create_shader_module},        // shader file spv
+    {"create_shader_module_str", l_vulkan_create_shader_module_str}, // string
+
     {"create_pipeline_layout", l_vulkan_create_pipeline_layout},
     {"create_graphics_pipelines", l_vulkan_create_graphics_pipelines},
 
@@ -2972,6 +3052,12 @@ int luaopen_vulkan(lua_State* L) {
     lua_setfield(L, -2, "PIPELINE_BIND_POINT_GRAPHICS");
     lua_pushnumber(L, UINT64_MAX);
     lua_setfield(L, -2, "UINT64_MAX");
+
+    // shaders
+    lua_pushinteger(L, shaderc_glsl_vertex_shader);
+    lua_setfield(L, -2, "shaderc_vertex_shader");
+    lua_pushinteger(L, shaderc_glsl_fragment_shader);
+    lua_setfield(L, -2, "shaderc_fragment_shader");
 
     return 1;
 }

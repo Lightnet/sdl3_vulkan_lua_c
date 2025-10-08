@@ -134,6 +134,8 @@ lua_VkCommandPool* lua_check_VkCommandPool(lua_State* L, int idx);
 void lua_push_VkCommandBuffer(lua_State* L, VkCommandBuffer command_buffer, VkDevice device);
 lua_VkCommandBuffer* lua_check_VkCommandBuffer(lua_State* L, int idx);
 
+static int l_vulkan_create_shader_module_str(lua_State* L);
+
 // Module entry point
 int luaopen_vulkan(lua_State* L);
 
