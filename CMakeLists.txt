@@ -381,52 +381,151 @@ endif()
 # )
 
 
-set(APP_TRI sdl_tri)
+# set(APP_TRI sdl_tri)
 
-add_executable(${APP_TRI}
-    src/base_triangle_string.c
-)
-target_link_libraries(${APP_TRI} PRIVATE 
-    SDL3::SDL3
-    Vulkan::Headers # Vulkan headers
-    vulkan # Vulkan loader library (from Vulkan-Loader)     
-    # shaderc_combined  # 600 mb
-    # SPIRV-Tools-shared                                          # Shared library target for SPIRV-Tools
-    # glslang                                                     # Shared library target for glslang
-    shaderc_shared                                              # Shared library target for shaderc
-    # shaderc                                                       # 648 mb added to application execute                                        
-    lua
-)
+# add_executable(${APP_TRI}
+#     src/base_triangle_string.c
+# )
+# target_link_libraries(${APP_TRI} PRIVATE 
+#     SDL3::SDL3
+#     Vulkan::Headers # Vulkan headers
+#     vulkan # Vulkan loader library (from Vulkan-Loader)     
+#     # shaderc_combined  # 600 mb
+#     # SPIRV-Tools-shared                                          # Shared library target for SPIRV-Tools
+#     # glslang                                                     # Shared library target for glslang
+#     shaderc_shared                                              # Shared library target for shaderc
+#     # shaderc                                                       # 648 mb added to application execute                                        
+#     lua
+# )
 
-target_include_directories(${APP_TRI} PRIVATE
-    ${CMAKE_SOURCE_DIR}/include                                 # root project
-    # ${cimgui_SOURCE_DIR}                                      # cimgui
-    # ${cimgui_SOURCE_DIR}/imgui                                # imgui
-    # ${cimgui_SOURCE_DIR}/imgui/backends                       # imgui/backends
-    ${SDL3_SOURCE_DIR}/include                                  # SDL 3.2.22
-    ${shaderc_SOURCE_DIR}/libshaderc/include                    # shaderc
-    ${vulkanheaders_SOURCE_DIR}/include                         # SDL 3.2.22
-    ${stb_SOURCE_DIR}                                           # font
-    ${lua_SOURCE_DIR}                                           # lua
-)
+# target_include_directories(${APP_TRI} PRIVATE
+#     ${CMAKE_SOURCE_DIR}/include                                 # root project
+#     # ${cimgui_SOURCE_DIR}                                      # cimgui
+#     # ${cimgui_SOURCE_DIR}/imgui                                # imgui
+#     # ${cimgui_SOURCE_DIR}/imgui/backends                       # imgui/backends
+#     ${SDL3_SOURCE_DIR}/include                                  # SDL 3.2.22
+#     ${shaderc_SOURCE_DIR}/libshaderc/include                    # shaderc
+#     ${vulkanheaders_SOURCE_DIR}/include                         # SDL 3.2.22
+#     ${stb_SOURCE_DIR}                                           # font
+#     ${lua_SOURCE_DIR}                                           # lua
+# )
 
-if (WIN32)
-    # Link necessary Windows libraries for raylib
-    target_link_libraries(${APP_TRI} PRIVATE
-        # opengl32
-        gdi32
-        winmm
-        # Threads::Threads
-    )
+# if (WIN32)
+#     # Link necessary Windows libraries for raylib
+#     target_link_libraries(${APP_TRI} PRIVATE
+#         # opengl32
+#         gdi32
+#         winmm
+#         # Threads::Threads
+#     )
 
-    # Static linking for libgcc and libstdc++
-    target_link_options(${APP_TRI} PRIVATE
-        # -Wl,-Bstatic
-        # -lgcc
-        # -lstdc++
-        # -lwinpthread
-        -static-libgcc
-        -static-libstdc++  # Uncomment if C++ code is used
-        -static           # Avoid full static linking to prevent issues with system libraries
-    )
-endif()
+#     # Static linking for libgcc and libstdc++
+#     target_link_options(${APP_TRI} PRIVATE
+#         # -Wl,-Bstatic
+#         # -lgcc
+#         # -lstdc++
+#         # -lwinpthread
+#         -static-libgcc
+#         -static-libstdc++  # Uncomment if C++ code is used
+#         -static           # Avoid full static linking to prevent issues with system libraries
+#     )
+# endif()
+
+# set(APP_LUA2 sdl_lua2)
+# add_executable(${APP_LUA2}
+#     lua_vulkan/main.c
+#     lua_vulkan/sdl_luajit.c
+#     lua_vulkan/vulkan_luajit.c
+# )
+# target_link_libraries(${APP_LUA2} PRIVATE 
+#     SDL3::SDL3
+#     Vulkan::Headers # Vulkan headers
+#     vulkan # Vulkan loader library (from Vulkan-Loader)     
+#     # shaderc_combined  # 600 mb
+#     # SPIRV-Tools-shared                                          # Shared library target for SPIRV-Tools
+#     # glslang                                                     # Shared library target for glslang
+#     shaderc_shared                                              # Shared library target for shaderc
+#     # shaderc                                                       # 648 mb added to application execute                                        
+#     lua
+# )
+# target_include_directories(${APP_LUA2} PRIVATE
+#     # ${CMAKE_SOURCE_DIR}/include                                 # root project
+#     ${CMAKE_SOURCE_DIR}/lua_include                                 # root project
+#     # ${cimgui_SOURCE_DIR}                                      # cimgui
+#     # ${cimgui_SOURCE_DIR}/imgui                                # imgui
+#     # ${cimgui_SOURCE_DIR}/imgui/backends                       # imgui/backends
+#     ${SDL3_SOURCE_DIR}/include                                  # SDL 3.2.22
+#     ${shaderc_SOURCE_DIR}/libshaderc/include                    # shaderc
+#     ${vulkanheaders_SOURCE_DIR}/include                         # SDL 3.2.22
+#     ${stb_SOURCE_DIR}                                           # font
+#     ${lua_SOURCE_DIR}                                           # lua
+# )
+# if (WIN32)
+#     # Link necessary Windows libraries for raylib
+#     target_link_libraries(${APP_LUA2} PRIVATE
+#         # opengl32
+#         gdi32
+#         winmm
+#         # Threads::Threads
+#     )
+#     # Static linking for libgcc and libstdc++
+#     target_link_options(${APP_LUA2} PRIVATE
+#         # -Wl,-Bstatic
+#         # -lgcc
+#         # -lstdc++
+#         # -lwinpthread
+#         -static-libgcc
+#         -static-libstdc++  # Uncomment if C++ code is used
+#         -static           # Avoid full static linking to prevent issues with system libraries
+#     )
+# endif()
+
+
+# set(APP_LUA_VULKAN simple_vulkan)
+# add_executable(${APP_LUA_VULKAN}
+#     lua54/src/main.c
+#     lua54/src/module_sdl.c
+#     lua54/src/module_vulkan.c
+# )
+# target_link_libraries(${APP_LUA_VULKAN} PRIVATE 
+#     SDL3::SDL3
+#     Vulkan::Headers # Vulkan headers
+#     vulkan # Vulkan loader library (from Vulkan-Loader)     
+#     # shaderc_combined  # 600 mb
+#     # SPIRV-Tools-shared                                          # Shared library target for SPIRV-Tools
+#     # glslang                                                     # Shared library target for glslang
+#     # shaderc_shared                                              # Shared library target for shaderc # ok
+#     # shaderc                                                       # 648 mb added to application execute                                        
+#     lua
+# )
+# target_include_directories(${APP_LUA_VULKAN} PRIVATE
+#     # ${CMAKE_SOURCE_DIR}/include                               # root project
+#     ${CMAKE_SOURCE_DIR}/lua54/include                           # root project
+#     # ${cimgui_SOURCE_DIR}                                      # cimgui
+#     # ${cimgui_SOURCE_DIR}/imgui                                # imgui
+#     # ${cimgui_SOURCE_DIR}/imgui/backends                       # imgui/backends
+#     ${SDL3_SOURCE_DIR}/include                                  # SDL 3.2.22
+#     ${shaderc_SOURCE_DIR}/libshaderc/include                    # shaderc
+#     ${vulkanheaders_SOURCE_DIR}/include                         # SDL 3.2.22
+#     ${stb_SOURCE_DIR}                                           # font
+#     ${lua_SOURCE_DIR}                                           # lua
+# )
+# if (WIN32)
+#     # Link necessary Windows libraries for raylib
+#     target_link_libraries(${APP_LUA_VULKAN} PRIVATE
+#         # opengl32
+#         gdi32
+#         winmm
+#         # Threads::Threads
+#     )
+#     # Static linking for libgcc and libstdc++
+#     target_link_options(${APP_LUA_VULKAN} PRIVATE
+#         # -Wl,-Bstatic
+#         # -lgcc
+#         # -lstdc++
+#         # -lwinpthread
+#         -static-libgcc
+#         -static-libstdc++  # Uncomment if C++ code is used
+#         -static           # Avoid full static linking to prevent issues with system libraries
+#     )
+# endif()

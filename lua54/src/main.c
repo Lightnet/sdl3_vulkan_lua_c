@@ -22,7 +22,6 @@ static int file_exists(const char* path) {
 }
 
 int main(int argc, char* argv[]) {
-    printf("SDL 3.2 Vulkan Lua 5.4\n");
     // Initialize Lua state.
     lua_State* L = luaL_newstate();
     if (!L) {
