@@ -6,7 +6,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-find_package(Threads REQUIRED)
+# find_package(Threads REQUIRED)
 
 # Set C standard (since you're using .c files)
 # set(CMAKE_C_STANDARD 11)
@@ -227,7 +227,7 @@ FetchContent_Declare(
     # EXCLUDE_FROM_ALL
 )
 # Option to skip shaderc tests (recommended for faster builds)
-FetchContent_MakeAvailable(spirv-headers)
+# FetchContent_MakeAvailable(spirv-headers)
 
 # Fetch SPIRV-Tools (depends on spirv-headers)
 FetchContent_Declare(
@@ -237,7 +237,7 @@ FetchContent_Declare(
     GIT_TAG        vulkan-sdk-1.4.313.0  # Stable release; update as needed
     # EXCLUDE_FROM_ALL
 )
-FetchContent_MakeAvailable(spirv-tools)
+# FetchContent_MakeAvailable(spirv-tools)
 
 # Fetch glslang (depends on spirv-tools)
 FetchContent_Declare(
@@ -246,7 +246,7 @@ FetchContent_Declare(
     GIT_TAG        16.0.0  # Stable release; update as needed
     # EXCLUDE_FROM_ALL
 )
-FetchContent_MakeAvailable(glslang)
+# FetchContent_MakeAvailable(glslang)
 
 # set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # Build shaderc as shared library (DLL)
 # Fetch shaderc (depends on glslang)
@@ -258,7 +258,7 @@ FetchContent_Declare(
     # EXCLUDE_FROM_ALL
 )
 
-FetchContent_MakeAvailable(shaderc)
+# FetchContent_MakeAvailable(shaderc)
 
 #================================================
 # APP
@@ -298,7 +298,7 @@ target_link_libraries(${APP_NAME} PRIVATE
     # shaderc
     # SPIRV-Tools-shared  # Shared library target for SPIRV-Tools
     # glslang             # Shared library target for glslang
-    shaderc_shared      # Shared library target for shaderc
+    # shaderc_shared      # Shared library target for shaderc
     lua
 )
 
