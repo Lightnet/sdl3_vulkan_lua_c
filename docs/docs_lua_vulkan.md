@@ -11,33 +11,33 @@ Table of Contents
 
 1. [Instance Creation](#instance-creation)
     - [create_vk_application_info](#vulkan.create_vk_application_info)
-    - [make_version](vulkan.make_version)
-    - sdl_vulkan_get_instance_extensions
-    - create_info
-    - create_instance
-2. Surface and Physical Device (#surface-and-physical-device)
+    - [make_version](#vulkan.make_version)
+    - [sdl_vulkan_get_instance_extensions](#vulkan.sdl_vulkan_get_instance_extensions)
+    - [create_info](#vulkan.create_info)
+    - [create_instance](#vulkan.create_instance)
+2. [Surface and Physical Device](#surface-and-physical-device)
     - sdl_vulkan_create_surface
     - create_physical_devices
-3. Device and Queue (#device-and-queue)
+3. [Device and Queue](#device-and-queue)
     - get_physical_devices_properties
     - create_device_info
     - create_device
     - get_device_queue
-4. Swapchain (#swapchain)
+4. [Swapchain](#swapchain)
     - get_physical_device_surface_capabilities_KHR
     - create_swap_chain_KHR
     - get_swapchain_images_KHR
     - create_image_view
-5. Render Pass (#render-pass)
+5. [Render Pass](#render-pass)
     - create_render_pass
-6. Framebuffer (#framebuffer)
+6. [Framebuffer](#framebuffer)
     - create_framebuffer
-7. Shader and Pipeline (#shader-and-pipeline)
+7. [Shader and Pipeline](#shader-and-pipeline)
     - create_shader_module
     - create_shader_module_str
     - create_pipeline_layout
     - create_graphics_pipelines
-8. Synchronization and Command Buffers (#synchronization-and-command-buffers)
+8. [Synchronization and Command Buffers](#synchronization-and-command-buffers)
     - create_semaphore
     - create_fence
     - create_command_pool
@@ -54,7 +54,7 @@ Table of Contents
     - end_commandbuffer
     - queue_submit
     - queue_present_KHR
-9. Utility and Cleanup (#utility-and-cleanup)
+9. [Utility and Cleanup](#utility-and-cleanup)
     - device_wait_idle
     - destroy_framebuffer
     - destroy_image_view
