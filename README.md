@@ -7,43 +7,45 @@
 - working on improve the code.
 
 # Program languages:
-- c language
+- c language 
 - cmake 3.x
 - lua 5.4
 
 # Libraries:
 - SDL 3.2.22
 - Lua 5.4
-- Vulkan sdk 1.4 from github
+- Vulkan-Headers vulkan-sdk-1.4.313.0
+- Vulkan-Loader vulkan-sdk-1.4.313.0
 - stb ( n/a )
 - cimgui ( n/a )
-- spirv-headers  ( n/a ) ( shader )
-- spirv-tools ( n/a ) ( shader )
-- sglslang  ( n/a ) ( shader )
-- shaderc  ( n/a ) ( shader )
+- spirv-headers  vulkan-sdk-1.4.313.0 ( shader )
+- spirv-tools vulkan-sdk-1.4.313.0 ( shader )
+- sglslang  16.0.0 ( shader )
+- shaderc  v2025.4 ( shader )
     - require
         - SPIRV-Tools
         - glslang
+    - build size is 650 MB.
 
   Note using the cmake to fetchcontent from github build and compile.
 
 # Information:
 
-  Sample build for SDL3, Lua 5.4, Vulkan SDK for c language build. Simple triangle with the help of Grok AI agent chat message. Grok AI on https://x.com/i/grok to help translate c vulkan code to lua script.
-  
-  By using lua script to expose SDL api events and vulkan api set up sample triangle 2D.
+  Sample build for SDL3, Lua 5.4, Vulkan SDK for c programing language. By using the lua script to expose vulkan api to set up and build triangle 2D with the help of Grok AI agent chat message. Grok AI on https://x.com/i/grok to help translate c vulkan code to lua script.
 
 # Goals:
-  To able to expose all struct for vulkan api to able to create 3D but due to limited of the translate which will have lag when translate layers from c to lua and lua to c.
-  
-  Need to refine and test lua script and vulkan api to translate.
+  To refine vulkan struct, functions and improve lua api code lua layer and meta table.
 
+  Area need to expose is shader set up and render features.
+  
   Well it required some warpper to handle some idea ways.
 
-## notes:
+## Notes:
 - If too much code added and it will be hard for AI to build triangle if there too many struct create ref table.
 - There will be lag if there a lot print logs.
-- Due to limited AI agent messages memory. Rebuilding take time.
+- Due to limited AI agent messages memory. Rebuilding or relearn take time.
+- Due to render out date it need to recrate swapchain since translate the layers.
+- Due limited use lua vulkan functions to compress to make AI to render triangle due to AI limit memory.
 
 # Todolist:
 - [x] simple triangle
@@ -124,7 +126,7 @@ endlocal
 ```
 
 # Lua:
-  Lua can be easy and hard to script and code in c. Lua use tables and metatables. Required some knowlege how to proper set up c api lua to work on lua script code. There will be pros and cons to vulkan format data.
+  Lua use tables and metatables for vulkan context for store and garbage collection. Required some knowlege how to proper set up c api lua to work on lua script code. There will be pros and cons to vulkan format data.
 
 ## Vulkan test:
   Work in progress. It is base sample triangle c to reference the build for lua script.
